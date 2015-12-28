@@ -8,6 +8,7 @@
 #include <fstream>
 #include <string>
 #include <vector>
+#include <map>
 
 #include <boost/thread/thread.hpp>
 #include <pcl/common/common_headers.h>
@@ -18,6 +19,7 @@
 #include <pcl/io/ply_io.h>
 #include <pcl/io/vtk_lib_io.h>
 #include <pcl/point_types.h>
+#include <pcl/common/transforms.h>
 
 // Euclidean Cluster Extraction
 #include <pcl/segmentation/sac_segmentation.h>
@@ -30,11 +32,15 @@
 #include <pcl/visualization/cloud_viewer.h>
 #include <pcl/filters/extract_indices.h>
 
+#include <pcl/segmentation/region_growing_rgb.h>
+#include <pcl/features/moment_of_inertia_estimation.h>
 
 //Globals
 
+
 using namespace std;
 using namespace pcl;
+
 
 // --------------
 // -----Help-----
@@ -255,21 +261,42 @@ boost::shared_ptr<pcl::visualization::PCLVisualizer> interactionCustomizationVis
 void visualizePointCloudClusters(std::vector<pcl::PointIndices> cluster_indices, pcl::PointCloud<pcl::PointXYZ>::Ptr cloudXYZ){
 
 	boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
-	std::vector<pcl::visualization::Camera> cam;
 	viewer->setBackgroundColor(0, 0, 0);
 	int j = 0;
 	for (std::vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin(); it != cluster_indices.end(); ++it)
 	{
 		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_cluster(new pcl::PointCloud<pcl::PointXYZ>);
-		for (std::vector<int>::const_iterator pit = it->indices.begin(); pit != it->indices.end(); ++pit)
-			cloud_cluster->points.push_back(cloudXYZ->points[*pit]); //*
+		for (std::vector<int>::const_iterator pit = it->indices.begin(); pit != it->indices.end(); ++pit){
+			cloud_cluster->points.push_back(cloudXYZ->points[*pit]); 
+		}
+		
 		cloud_cluster->width = cloud_cluster->points.size();
 		cloud_cluster->height = 1;
 		cloud_cluster->is_dense = true;
 
+		cout << "cluster " << j << endl;
+
+		// calculate bounding box
+		pcl::MomentOfInertiaEstimation <pcl::PointXYZ> feature_extractor;
+		feature_extractor.setInputCloud(cloud_cluster);
+		feature_extractor.compute();
+
+		std::vector <float> moment_of_inertia;
+		std::vector <float> eccentricity;
+		pcl::PointXYZ min_point_AABB;
+		pcl::PointXYZ max_point_AABB;
+
+		feature_extractor.getMomentOfInertia(moment_of_inertia);
+		feature_extractor.getEccentricity(eccentricity);
+		feature_extractor.getAABB(min_point_AABB, max_point_AABB);
+
+
+
+		// visualize clusters
 		pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> single_color(cloud_cluster, (j * 3 * 10), 80, j * 3 * 20);
 		viewer->addPointCloud<pcl::PointXYZ>(cloud_cluster, single_color, "sample cloud" + j);
 		viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "sample cloud" + j); (cloud_cluster);
+		viewer->addCube(min_point_AABB.x, max_point_AABB.x, min_point_AABB.y, max_point_AABB.y, min_point_AABB.z, max_point_AABB.z, 1.0, 1.0, 0.0, "AABB" + j);
 
 
 		std::cout << "cloud_cluster_" << j << "\t" << "color  = " << (j * 10) << "," << 255 << "," << j * 20 << std::endl;
@@ -279,31 +306,20 @@ void visualizePointCloudClusters(std::vector<pcl::PointIndices> cluster_indices,
 	viewer->addCoordinateSystem(1.0);
 	viewer->initCameraParameters();
 
-	viewer->registerKeyboardCallback(keyboardEventOccurred, (void*)&viewer);
-	viewer->registerMouseCallback(mouseEventOccurred, (void*)&viewer);
+	//viewer->registerKeyboardCallback(keyboardEventOccurred, (void*)&viewer);
+	//viewer->registerMouseCallback(mouseEventOccurred, (void*)&viewer);
 
 
 	// visualize result
 	while (!viewer->wasStopped())
 	{
-
-		//Save the position of the camera           
-		viewer->getCameras(cam);
-
-		double viewDirection = cam[0].pos - cam[0].focal;
-
-		cout << "viewDirection = " << viewDirection << endl;
-
-		//Print recorded points on the screen: 
-		cout << "Cam: " << endl
-			<< " - pos: (" << cam[0].pos[0] << ", " << cam[0].pos[1] << ", " << cam[0].pos[2] << ")" << endl
-			<< " - view: (" << cam[0].view[0] << ", " << cam[0].view[1] << ", " << cam[0].view[2] << ")" << endl
-			<< " - focal: (" << cam[0].focal[0] << ", " << cam[0].focal[1] << ", " << cam[0].focal[2] << ")" << endl;
-
 		viewer->spinOnce(100);
 		boost::this_thread::sleep(boost::posix_time::microseconds(100000));
 	}
 
+	// closes the window after pressing 'q'
+	viewer->close();
+	
 	return;
 }
 
@@ -454,6 +470,39 @@ vector<string> getFilesInDirectory(const string directory)
 	return out;
 }
 
+vector<string> sortFilenames(vector<string> filenames){
+
+	vector<int> temp = vector<int>(sizeof(filenames));
+	vector<string> sortedFilenames = vector<string>(sizeof(filenames));
+	string path = "";
+	string perfix = "outputCloud";
+
+	temp.clear();
+	vector<string>::const_iterator iter;
+	for (iter = filenames.begin(); iter != filenames.end(); ++iter)
+	{
+		int indexSeparator = (*iter).find_last_of('\\');
+		path = (*iter).substr(0, indexSeparator);
+
+		string name = (*iter).substr(indexSeparator + 1, (*iter).length());
+
+		int cloudNumber = atoi(name.substr(perfix.length(), name.length()).c_str());
+		temp.push_back(cloudNumber);
+
+	}
+
+	sort(temp.begin(), temp.end());
+
+	vector<int>::const_iterator iter_int;
+	for (iter_int = temp.begin(); iter_int != temp.end(); ++iter_int){
+		string name = path + '\\' + perfix + boost::lexical_cast<string>(*iter_int);
+		sortedFilenames.push_back(name);
+		cout << name << endl;
+	}
+
+	return sortedFilenames;
+}
+
 void loadPointCloudNoFormat(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, string pointCloudPath){
 	std::ifstream f;
 	f.open(pointCloudPath, fstream::in);
@@ -482,8 +531,6 @@ void loadPointCloudNoFormat(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, string
 		point.g = (uint8_t)stoi(pos[4]);
 		point.b = (uint8_t)stoi(pos[5]);
 
-		//CALIBRATION
-
 		if (point.x != 0 && point.y != 0 && point.z != 0)
 			cloud->points.push_back(point);
 	}
@@ -510,6 +557,82 @@ void loadPointCloudsNoFormat(){
 }
 
 // ----------------------------------------------------------------------
+// -----LOAD POINT TOOLS ------------------------------------------------
+// ----------------------------------------------------------------------
+
+pcl::PointCloud<pcl::PointXYZ>::Ptr ApplyCalibrationToPointCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, string calibrarionFilePath){
+
+	pcl::PointCloud<pcl::PointXYZ>::Ptr transformed_cloud(new pcl::PointCloud<pcl::PointXYZ>());
+	boost::filesystem::path full_path(boost::filesystem::current_path());
+	
+	// Get calibration data
+	std::ifstream f;
+	f.open(full_path.string() + "\\" + calibrarionFilePath, fstream::in);
+	std::string line;
+	string delimiter = "=";
+	float *translationRotation = new float[6]; // posx, posy, posz, rotx, roty, rotz
+	size_t p;
+	int i = 0;
+	//string substring = "";
+
+	while (std::getline(f, line))
+	{
+		if ((p = line.find(delimiter)) != std::string::npos) {
+			translationRotation[i] = stof(line.substr(p + 1, line.length()));
+			i++;
+		}
+		//pos[5] = line.substr(p+1, line.length());
+	}
+
+	// compute point cloud position
+	// Object to store the centroid coordinates.
+	Eigen::Vector4f centroid;
+
+	pcl::compute3DCentroid(*cloud, centroid);
+
+	std::cout << "The XYZ coordinates of the centroid are: ("
+		<< centroid[0] << ", "
+		<< centroid[1] << ", "
+		<< centroid[2] << ")." << std::endl;
+
+	cout << "translation x = " << translationRotation[0] << " y = " << translationRotation[1] << " z = " << translationRotation[2] << endl;
+	cout << "rotation x = " << translationRotation[3] << " y = " << translationRotation[4] << " z = " << translationRotation[5] << endl;
+
+	
+	Eigen::Affine3f transform_2 = Eigen::Affine3f::Identity();
+
+	// translate to 0
+	// then rotate 
+	// then translate to initial position
+
+	// Define a translation to 0,0,0.
+	//transform_2.translation() << translationRotation[0], translationRotation[1], translationRotation[2];
+	transform_2.translation() << -centroid[0], -centroid[1], -centroid[2];
+
+	float thetaX = (M_PI / 180) * translationRotation[3]; // The angle of rotation in radians
+	float thetaY = (M_PI / 180) * translationRotation[4]; // The angle of rotation in radians
+	float thetaZ = (M_PI / 180) * translationRotation[5]; // The angle of rotation in radians
+	// The  rotation matrix; tetha radians arround X, Y and Z axis
+	transform_2.rotate(Eigen::AngleAxisf(thetaX, Eigen::Vector3f::UnitX()));
+	transform_2.rotate(Eigen::AngleAxisf(thetaY, Eigen::Vector3f::UnitY()));
+	transform_2.rotate(Eigen::AngleAxisf(thetaZ, Eigen::Vector3f::UnitZ()));
+
+	transform_2.translation() << translationRotation[0], translationRotation[1], translationRotation[2];
+
+	// Apply rotation
+	pcl::transformPointCloud(*cloud, *transformed_cloud, transform_2);
+
+	// Print the transformation
+	printf("\nMethod #2: using an Affine3f\n");
+	std::cout << transform_2.matrix() << std::endl;
+
+	return transformed_cloud;
+}
+
+
+
+
+// ----------------------------------------------------------------------
 // -----POINT CLOUD SEGMENTATION-----------------------------------------
 // ----------------------------------------------------------------------
 
@@ -521,9 +644,9 @@ std::vector<pcl::PointIndices> EuclideanClusterExtractionSegmentation(pcl::Point
 
 	std::vector<pcl::PointIndices> cluster_indices;
 	pcl::EuclideanClusterExtraction<pcl::PointXYZ> ec;
-	ec.setClusterTolerance(0.02); // 2cm
-	ec.setMinClusterSize(1000);
-	//ec.setMaxClusterSize(100000);
+	ec.setClusterTolerance(0.032); // 2cm
+	ec.setMinClusterSize(2000);
+	//ec.setMaxClusterSize(40000);
 	ec.setSearchMethod(tree);
 	ec.setInputCloud(cloudXYZ);
 	ec.extract(cluster_indices);
@@ -595,6 +718,38 @@ void RegionGrowingSegmentation(pcl::PointCloud<pcl::PointXYZRGB>::Ptr point_clou
 
 }
 
+void colorBasedRegionGrowingSegmentation(pcl::PointCloud<pcl::PointXYZRGB>::Ptr point_cloud_ptr){
+
+	pcl::search::Search <pcl::PointXYZRGB>::Ptr tree = boost::shared_ptr<pcl::search::Search<pcl::PointXYZRGB> >(new pcl::search::KdTree<pcl::PointXYZRGB>);
+
+	pcl::IndicesPtr indices(new std::vector <int>);
+	pcl::PassThrough<pcl::PointXYZRGB> pass;
+	pass.setInputCloud(point_cloud_ptr);
+	pass.setFilterFieldName("z");
+	pass.setFilterLimits(0.0, 1.0);
+	pass.filter(*indices);
+
+	pcl::RegionGrowingRGB<pcl::PointXYZRGB> reg;
+	reg.setInputCloud(point_cloud_ptr);
+	reg.setIndices(indices);
+	reg.setSearchMethod(tree);
+	reg.setDistanceThreshold(5);
+	reg.setPointColorThreshold(10);
+	reg.setRegionColorThreshold(5);
+	reg.setMinClusterSize(100);
+
+	std::vector <pcl::PointIndices> clusters;
+	reg.extract(clusters);
+
+	pcl::PointCloud <pcl::PointXYZRGB>::Ptr colored_cloud = reg.getColoredCloud();
+	pcl::visualization::CloudViewer viewer("Cluster viewer");
+	viewer.showCloud(colored_cloud);
+	while (!viewer.wasStopped())
+	{
+		boost::this_thread::sleep(boost::posix_time::microseconds(100));
+	}
+
+}
 
 // --------------
 // -----Main-----
@@ -602,16 +757,95 @@ void RegionGrowingSegmentation(pcl::PointCloud<pcl::PointXYZRGB>::Ptr point_clou
 int
 main(int argc, char** argv)
 {
+	// color based segmentation example
+	/*pcl::PointCloud<pcl::PointXYZRGB>::Ptr point_cloud_ptr(new pcl::PointCloud<pcl::PointXYZRGB>);
+	pcl::PolygonMesh mesh;
+	pcl::io::loadPolygonFilePLY("C:\\Users\\Joanna\\Documents\\GitHub\\PointCloudSegmentation\\simple100k.ply", mesh);
+	fromPCLPointCloud2(mesh.cloud, *point_cloud_ptr);
 
-	string pointCloudPath = "C:\\Users\\Joanna\\Desktop\\Data\\JoaoFiadeiro\\SecondSession\\SecondTestPointClouds\\girafa\\Output2";
+	colorBasedRegionGrowingSegmentation(point_cloud_ptr);*/
 
-	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
-	pcl::PointCloud <pcl::PointXYZ>::Ptr cloudXYZ(new pcl::PointCloud <pcl::PointXYZ>);
-	std::vector<pcl::PointIndices> cluster_indices;
+	//string pointCloudPath = "C:\\Users\\Joanna\\Desktop\\Data\\JoaoFiadeiro\\SecondSession\\SecondTestPointClouds\\girafa\\Output2\\sample";
 	
-	vector<string> pointCloudFilenames = getFilesInDirectory(pointCloudPath);
+	map<int, vector<string>> pointCloudFiles_list;
+	map<int, PointCloud<PointXYZ>::Ptr> pointCloud_list;
 
-	int i = 0;
+
+	string outputCloudPathsAndCalibration[3][2] = { 
+	{ "C:\\Users\\Joanna\\Desktop\\Data\\JoaoFiadeiro\\SecondSession\\SecondTestPointClouds\\girafa\\Output2\\sample", "girafa.ini" },
+	{"C:\\Users\\Joanna\\Desktop\\Data\\JoaoFiadeiro\\SecondSession\\SecondTestPointClouds\\silvia\\Output2\\sample", "silvia.ini" },
+	{"C:\\Users\\Joanna\\Desktop\\Data\\JoaoFiadeiro\\SecondSession\\SecondTestPointClouds\\surface\\Output2\\sample", "surface.ini"} 
+	}; // filepath, calibration filename
+
+	//int rows = sizeof(outputCloudPathsAndCalibration) / sizeof(outputCloudPathsAndCalibration[0]);
+	//int columns = sizeof(outputCloudPathsAndCalibration) / sizeof(outputCloudPathsAndCalibration[1]);
+
+	//cout << rows << endl;
+	//cout << columns << endl;
+
+	for (int i = 0; i < 3; i++){
+		vector<string> pointCloudFilenames = getFilesInDirectory(outputCloudPathsAndCalibration[i][0]);
+		std::cout << i << " :: " << outputCloudPathsAndCalibration[i][0] << std::endl;
+		cout << "size = " << pointCloudFilenames.size() << endl;
+		pointCloudFiles_list.insert(make_pair(i, pointCloudFilenames));
+	}
+
+	
+	map<int, vector<string>>::iterator it_pointCloudFiles = pointCloudFiles_list.begin();
+	map<int, PointCloud<PointXYZ>::Ptr>::iterator it_pointCloud;
+	int pointCloudFilesIndex = 0;
+	while (it_pointCloudFiles != pointCloudFiles_list.end()) {
+		int file_index = 0;
+		vector<string>::const_iterator iter;
+		for (iter = it_pointCloudFiles->second.begin(); iter != it_pointCloudFiles->second.end(); ++iter)
+		{
+			PointCloud<PointXYZRGB>::Ptr cloud(new PointCloud<PointXYZRGB>);
+			PointCloud<PointXYZ>::Ptr cloudXYZ(new PointCloud<PointXYZ>);;
+
+			loadPointCloudNoFormat(cloud, *iter);
+			copyPointCloud<PointXYZRGB, PointXYZ>(*cloud, *cloudXYZ);
+
+			cout << "file " << *iter << " - calibration file = " << outputCloudPathsAndCalibration[pointCloudFilesIndex][1] << endl;
+			
+			cloudXYZ = ApplyCalibrationToPointCloud(cloudXYZ, outputCloudPathsAndCalibration[pointCloudFilesIndex][1]); // TODO: add calibration file
+
+			it_pointCloud = pointCloud_list.find(file_index);
+			if (it_pointCloud != pointCloud_list.end()) {
+				//concatenate point clouds
+				PointCloud<PointXYZ>::Ptr cloudtemp = pointCloud_list.find(file_index)->second;
+				*cloudtemp += *cloudXYZ;
+				pointCloud_list[file_index] = cloudtemp;
+				//cout << "point cloud size = " << pointCloud_list[file_index]->points.size() << endl;
+			}
+			else {
+				// name pair
+				pointCloud_list.insert(make_pair(file_index, cloudXYZ));
+			}
+			file_index++;
+		}
+		pointCloudFilesIndex++;
+		it_pointCloudFiles++;
+		
+		//std::cout << it->first << " :: " << it->second << std::endl;
+	}
+
+	it_pointCloud = pointCloud_list.begin();
+	while (it_pointCloud != pointCloud_list.end()) {
+		
+		// EuclideanClusterExtraction
+		std::vector<pcl::PointIndices> cluster_indices = EuclideanClusterExtractionSegmentation(it_pointCloud->second);
+
+		visualizePointCloudClusters(cluster_indices, it_pointCloud->second);
+		it_pointCloud++;
+		cluster_indices.clear();
+	}
+
+	//vector<string> pointCloudFilenames1 = getFilesInDirectory(pointCloudPath);
+
+	//pointCloudFilenames = sortFilenames(pointCloudFilenames);
+
+	
+	/*int i = 0;
 	vector<string>::const_iterator iter;
 	for (iter = pointCloudFilenames.begin(); iter != pointCloudFilenames.end(); ++iter)
 	{
@@ -620,8 +854,24 @@ main(int argc, char** argv)
 		loadPointCloudNoFormat(cloud, *iter);
 		copyPointCloud<PointXYZRGB, PointXYZ>(*cloud, *cloudXYZ);
 
+		// apply calibration: translation -> rotation
+		ApplyCalibrationToPointCloud(cloudXYZ, "girafa.ini");
+
 		// EuclideanClusterExtraction
 		cluster_indices = EuclideanClusterExtractionSegmentation(cloudXYZ);
+
+		visualizePointCloudClusters(cluster_indices, cloudXYZ);
+
+		//	cout << "Write clusters to file?" << endl;
+		//	cout << "press 's' or 'n'" << endl;
+
+		// Wait for single character 
+		//	char input = getchar();
+
+		// Echo input:
+		//	cout << "-- you said - " << input << " - so clusters will be written --";
+
+		//	if (input == 's') {
 
 		//write cluster data
 		pcl::PCDWriter writer;
@@ -645,8 +895,15 @@ main(int argc, char** argv)
 		}
 
 		i++;
-	}
-	cout << "FINISHED LOADING POINT CLOUD DATA" << endl;
+		cloud->clear();
+		//	}
+		//	else
+		//		continue;
+	}*/
+	
+	cout << "FINISHED SEGMENTING POINT CLOUD DATA" << endl;
+
+	getchar();
 	return 0;
 
 	// region growing segmentation
