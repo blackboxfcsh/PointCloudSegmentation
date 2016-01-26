@@ -1,9 +1,17 @@
 
 #include "OutputCloud.h"
 
-pcl::PointCloud<pcl::PointXYZRGB>::Ptr OutputCloud::ApplyCalibrationToPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, string calibrarionFilePath){
+// define the destructor
+OutputCloud::~OutputCloud() {
 
-	pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloud(new pcl::PointCloud<pcl::PointXYZRGB>());
+	cloudRGB.reset();
+	cloudXYZ.reset();
+}
+
+void OutputCloud::applyCalibrationToPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, string calibrarionFilePath){
+
+	PointCloud<pcl::PointXYZRGB>::Ptr tmp;
+	tmp = cloud;
 	boost::filesystem::path full_path(boost::filesystem::current_path());
 
 	// Get calibration data
@@ -14,15 +22,13 @@ pcl::PointCloud<pcl::PointXYZRGB>::Ptr OutputCloud::ApplyCalibrationToPointCloud
 	float *translationRotation = new float[6]; // posx, posy, posz, rotx, roty, rotz
 	size_t p;
 	int i = 0;
-	//string substring = "";
-
+	
 	while (std::getline(f, line))
 	{
 		if ((p = line.find(delimiter)) != std::string::npos) {
 			translationRotation[i] = stof(line.substr(p + 1, line.length()));
 			i++;
 		}
-		//pos[5] = line.substr(p+1, line.length());
 	}
 
 	// compute point cloud position
@@ -47,12 +53,8 @@ pcl::PointCloud<pcl::PointXYZRGB>::Ptr OutputCloud::ApplyCalibrationToPointCloud
 	// then translate to initial position
 
 	// Define a translation to 0,0,0.
-	//transform_2.translation() << translationRotation[0], translationRotation[1], translationRotation[2];
 	transform_2.translation() << -centroid[0], -centroid[1], -centroid[2];
 
-	/*float thetaX = (M_PI / 180) * translationRotation[3]; // The angle of rotation in radians
-	float thetaY = (M_PI / 180) * translationRotation[4]; // The angle of rotation in radians
-	float thetaZ = (M_PI / 180) * translationRotation[5]; // The angle of rotation in radians */
 
 	float thetaX = deg2rad(translationRotation[3]); // The angle of rotation in radians
 	float thetaY = deg2rad(translationRotation[4]);; // The angle of rotation in radians
@@ -62,20 +64,22 @@ pcl::PointCloud<pcl::PointXYZRGB>::Ptr OutputCloud::ApplyCalibrationToPointCloud
 	transform_2.rotate(Eigen::AngleAxisf(thetaY, Eigen::Vector3f::UnitY()));
 	transform_2.rotate(Eigen::AngleAxisf(thetaZ, Eigen::Vector3f::UnitZ()));
 
-	cout << "rotation in radians x = " << thetaX << " y = " << thetaY << " z = " << thetaZ << endl;
-
+	// translate to original position
 	transform_2.translation() << centroid[0], centroid[1], centroid[2];
 
+	// translate to calibration position
 	transform_2.translation() << translationRotation[0], translationRotation[1], translationRotation[2]; \
 
 	// Apply translate to origin, rotation, translate no original position, translate to calibration position
-	pcl::transformPointCloud(*cloud, *transformed_cloud, transform_2);
+	pcl::transformPointCloud(*cloud, *tmp, transform_2);
+
+	cloud = tmp;
 
 	// Print the transformation
 	printf("\nMethod #2: using an Affine3f\n");
 	std::cout << transform_2.matrix() << std::endl;
 
-	return transformed_cloud;
+	return;
 }
 
 
@@ -115,13 +119,169 @@ void OutputCloud::loadPointCloudNoFormat(pcl::PointCloud<pcl::PointXYZRGB>::Ptr 
 void OutputCloud::loadPointClouds(map<string, string> filenameByCalibrationpath) {
 
 	PointCloud<PointXYZRGB>::Ptr cloud(new PointCloud<PointXYZRGB>);
-	pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformedCloud;
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr tempCloud(new PointCloud<PointXYZRGB>);
 	map<string, string>::iterator iter;
 	for (iter = filenameByCalibrationpath.begin(); iter != filenameByCalibrationpath.end(); iter++) {
-		pcl::PointCloud<pcl::PointXYZRGB>::Ptr tempCloud;
 		loadPointCloudNoFormat(cloud, iter->first);
-		pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformedCloud = ApplyCalibrationToPointCloud(cloud, iter->second);
-		*cloud += *transformedCloud;
+		applyCalibrationToPointCloud(cloud, iter->second);
+		*tempCloud += *cloud;
+		cloud->clear();
 	}
-	cloudRGB = cloud;
+	cloudRGB = tempCloud;
+}
+
+void OutputCloud::calculatePointCloudClusters() {
+
+	EuclideanClusterExtraction<PointXYZ> ec;
+	// Creating the KdTree object for the search method of the extraction
+	search::KdTree<pcl::PointXYZ>::Ptr tree(new search::KdTree<PointXYZ>);
+
+	//create XYZ point cloud from RGB cloud
+
+	copyPointCloud<PointXYZRGB, PointXYZ>(*cloudRGB, *cloudXYZ);
+	tree->setInputCloud(cloudXYZ);
+
+	std::vector<pcl::PointIndices> cluster_indices;
+	ec.setClusterTolerance(0.028); // 2,8cm
+	ec.setMinClusterSize(2000);
+	//ec.setMaxClusterSize(40000);
+	ec.setSearchMethod(tree);
+	ec.setInputCloud(cloudXYZ);
+	ec.extract(cluster_indices);
+
+	createCloudClusters(cluster_indices);
+
+	return;
+
+
+}
+
+void OutputCloud::createCloudClusters(vector<pcl::PointIndices> cluster_indices) {
+
+	
+	for (std::vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin(); it != cluster_indices.end(); ++it)
+	{
+		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_cluster(new pcl::PointCloud<pcl::PointXYZ>);
+		for (std::vector<int>::const_iterator pit = it->indices.begin(); pit != it->indices.end(); ++pit)
+			cloud_cluster->points.push_back(cloudXYZ->points[*pit]); //*
+		cloud_cluster->width = cloud_cluster->points.size();
+		cloud_cluster->height = 1;
+		cloud_cluster->is_dense = true;
+
+		// calculate cluster centroid
+		// compute point cloud position
+		// Object to store the centroid coordinates.
+		Eigen::Vector4f centroid;
+		pcl::compute3DCentroid(*cloud_cluster, centroid);
+
+		std::cout << "The XYZ coordinates of the centroid are: ("
+			<< centroid[0] << ", " 
+			<< centroid[1] << ", "
+			<< centroid[2] << ")." << std::endl;
+
+		CloudCluster cloudCluster;
+		cloudCluster.setClusterCentroid(centroid[0], centroid[1], centroid[2]);
+		cloudCluster.setPointCloudCluster(cloud_cluster);
+
+		clusters.push_back(cloudCluster);
+	}
+
+	return;
+}
+
+
+void OutputCloud::determinePointCloudClustersIndex(list<CloudCluster> previousClusters) {
+
+	if (previousClusters.empty()) {
+		int i = 0;
+		for (list<CloudCluster>::const_iterator cloudClusterIter = clusters.begin(); cloudClusterIter != clusters.end(); ++cloudClusterIter)
+		{
+			CloudCluster cloudCluster = (*cloudClusterIter);
+			cloudCluster.setClusterIndex(i);
+			i++;
+		}
+	}
+	else {
+		int currentClusterIndex = 0;
+		list<CloudCluster>::const_iterator cloudClusterIter;
+		for (cloudClusterIter = clusters.begin(); cloudClusterIter != clusters.end(); ++cloudClusterIter)
+		{
+			float minDist = 100.0;
+			CloudCluster cloudCluster = (*cloudClusterIter);
+			for (list<CloudCluster>::const_iterator previousClustersIter = previousClusters.begin(); previousClustersIter != previousClusters.end(); ++previousClustersIter)
+			{
+				CloudCluster previousCloudCluster = (*previousClustersIter);
+				float dist = euclideanDistance(cloudCluster.getClusterCentroid(), previousCloudCluster.getClusterCentroid());
+				if (dist < minDist) {
+					minDist = dist;
+					currentClusterIndex = previousCloudCluster.getClusterIndex();
+				}
+			}
+			cloudCluster.setClusterIndex(currentClusterIndex);
+		}
+		//check if there are more clusters in the current list 
+		while (cloudClusterIter != clusters.end()) {
+			CloudCluster cloudCluster = (*cloudClusterIter);
+			cloudCluster.setClusterIndex(++currentClusterIndex);
+			cloudClusterIter++;
+		}
+	}
+	return;
+}
+
+void OutputCloud::visualizePointCloudClusters(){
+
+	boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
+	viewer->setBackgroundColor(0, 0, 0);
+	int j = 0;
+	for (list<CloudCluster>::const_iterator cloudClusterIter = clusters.begin(); cloudClusterIter != clusters.end(); ++cloudClusterIter)
+	{
+		cout << "cluster " << j << endl;
+
+		PointCloud<PointXYZ>::Ptr pointCloudCluster = (*cloudClusterIter).getPointCloudCluster();
+
+		// calculate bounding box
+		pcl::MomentOfInertiaEstimation <pcl::PointXYZ> feature_extractor;
+		feature_extractor.setInputCloud(pointCloudCluster);
+		feature_extractor.compute();
+
+		std::vector <float> moment_of_inertia;
+		std::vector <float> eccentricity;
+		pcl::PointXYZ min_point_AABB;
+		pcl::PointXYZ max_point_AABB;
+
+		feature_extractor.getMomentOfInertia(moment_of_inertia);
+		feature_extractor.getEccentricity(eccentricity);
+		feature_extractor.getAABB(min_point_AABB, max_point_AABB);
+
+		// visualize clusters
+		pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> single_color(pointCloudCluster, (j * 3 * 10), 80, j * 3 * 20);
+		viewer->addPointCloud<pcl::PointXYZ>(pointCloudCluster, single_color, "sample cloud" + j);
+		viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "sample cloud" + j); (pointCloudCluster);
+		viewer->addCube(min_point_AABB.x, max_point_AABB.x, min_point_AABB.y, max_point_AABB.y, min_point_AABB.z, max_point_AABB.z, 1.0, 1.0, 0.0, "AABB" + j);
+
+		std::cout << "AABB" << j << std::endl;
+		std::cout << "cloud_cluster_" << j << "\t" << "color  = " << (j * 10) << "," << 255 << "," << j * 20 << std::endl;
+		
+		j++;
+	}
+
+	viewer->addCoordinateSystem(1.0);
+	viewer->initCameraParameters();
+
+	//viewer->registerKeyboardCallback(keyboardEventOccurred, (void*)&viewer);
+	//viewer->registerMouseCallback(mouseEventOccurred, (void*)&viewer);
+
+
+	// visualize result
+	while (!viewer->wasStopped())
+	{
+		viewer->spinOnce(100);
+		boost::this_thread::sleep(boost::posix_time::microseconds(100000));
+	}
+
+	// closes the window after pressing 'q'
+	viewer->close();
+
+	return;
 }

@@ -21,6 +21,11 @@
 #include <pcl/point_types.h>
 #include <pcl/common/transforms.h>
 
+// EuclideanClusterExtraction
+#include <pcl/segmentation/sac_segmentation.h>
+#include <pcl/segmentation/extract_clusters.h>
+// calculate point cloud clusters bounding boxes
+#include <pcl/features/moment_of_inertia_estimation.h>
 
 using namespace std;
 using namespace pcl;
@@ -30,37 +35,39 @@ class OutputCloud {
 	private:
 		int index;
 
-		PointCloud<pcl::PointXYZRGB>::Ptr cloudRGB;
-		PointCloud<pcl::PointXYZ> cloudXYZ;
+		PointCloud<PointXYZRGB>::Ptr cloudRGB;
+		PointCloud<PointXYZ>::Ptr cloudXYZ;
 
 		list<CloudCluster> clusters;
 
 	public:
 
 		// constructor(s) and destructor
-		OutputCloud() {}
+		OutputCloud():cloudXYZ(new PointCloud<PointXYZ>) { }
 		
-		/*OutputCloud(PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb) 
-			:cloudRGB(cloudrgb) {
+		~OutputCloud();
 
-			copyPointCloud<PointXYZRGB, PointXYZ>(*cloudrgb, *cloudXYZ);
-		}*/
-		
 
 		// accessors
 		PointCloud<PointXYZRGB>::Ptr getPointCloudRGB() const { return cloudRGB; }
-		/*void setPointCloudRGB(PointCloud<PointXYZRGB>::Ptr cloudrgb) { cloudRGB = cloudrgb; }
+		//void setPointCloudRGB(PointCloud<PointXYZRGB>::Ptr cloudrgb) { cloudRGB = cloudrgb; }
 
 		PointCloud<PointXYZ>::Ptr getPointCloudXYZ() const { return cloudXYZ; }
-		void setPointCloudXYZ(PointCloud<PointXYZ>::Ptr cloudxyz) { cloudXYZ = cloudxyz; }*/
+		//void setPointCloudXYZ(PointCloud<PointXYZ>::Ptr cloudxyz) { cloudXYZ = cloudxyz; }
 
 		void setIndex(int idx) { index = idx; }
 
+		list<CloudCluster> getClusters() const { return clusters; }
+
 		// methods
-		PointCloud<pcl::PointXYZRGB>::Ptr ApplyCalibrationToPointCloud(PointCloud<PointXYZRGB>::Ptr cloud, string calibrarionFilePath);
+		void applyCalibrationToPointCloud(PointCloud<PointXYZRGB>::Ptr cloud, string calibrarionFilePath);
 		void loadPointCloudNoFormat(PointCloud<PointXYZRGB>::Ptr cloud, string pointCloudPath);
 		void loadPointClouds(map<string, string> filenameByCalibrationpath);
-		
+		void calculatePointCloudClusters();
+		void createCloudClusters(vector<pcl::PointIndices> cluster_indices);
+		void determinePointCloudClustersIndex(list<CloudCluster> previousClusters);
+		void visualizePointCloudClusters();
+
 		void WriteClusters2File();
 		
 
