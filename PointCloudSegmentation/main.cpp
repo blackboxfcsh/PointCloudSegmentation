@@ -333,7 +333,7 @@ void visualizePointCloudClusters(std::vector<pcl::PointIndices> cluster_indices,
 	return;
 }
 
-void visualizePointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, int clusterID){
+void visualizePointCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, int clusterID){
 
 	boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("Viewer 3D"));
 	viewer->setBackgroundColor(0, 0, 0);
@@ -342,34 +342,16 @@ void visualizePointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, int clust
 	sprintf(str, "CLUSTER%i", clusterID);
 	viewer->addText(str, 100, 100);
 
-	//viewer->addText(clusterID, 0, 0, clusterID);
+	// TODO: ADD BOUNDING BOX
 	
-	// calculate bounding box
-	PointCloud<PointXYZ>::Ptr cloudXYZ(new PointCloud<PointXYZ>);
-	copyPointCloud<PointXYZRGB, PointXYZ>(*cloud, *cloudXYZ);
-	pcl::MomentOfInertiaEstimation <pcl::PointXYZ> feature_extractor;
-	feature_extractor.setInputCloud(cloudXYZ);
-	feature_extractor.compute();
-
-	std::vector <float> moment_of_inertia;
-	std::vector <float> eccentricity;
-	pcl::PointXYZ min_point_AABB;
-	pcl::PointXYZ max_point_AABB;
-
-	feature_extractor.getMomentOfInertia(moment_of_inertia);
-	feature_extractor.getEccentricity(eccentricity);
-	feature_extractor.getAABB(min_point_AABB, max_point_AABB);
-
-
-
 	// visualize clusters
-	//pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> single_color(cloudXYZ, 30, 80, 3 * 20);
-	//viewer->addPointCloud<pcl::PointXYZ>(cloudXYZ, single_color, "sample cloud");
-	pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(cloud);
-	viewer->addPointCloud<pcl::PointXYZRGB>(cloud, rgb, "sample cloud");
+	pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> single_color(cloud, 30, 80, 3 * 20);
+	viewer->addPointCloud<pcl::PointXYZ>(cloud, single_color, "sample cloud");
+	//pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(cloud);
+	//viewer->addPointCloud<pcl::PointXYZRGB>(cloud, rgb, "sample cloud");
 	//viewer->addPointCloud(cloud);
-	viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "sample cloud"); (cloud);
-	viewer->addCube(min_point_AABB.x, max_point_AABB.x, min_point_AABB.y, max_point_AABB.y, min_point_AABB.z, max_point_AABB.z, 1.0, 1.0, 0.0, "AABB");
+	//viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "sample cloud"); (cloud);
+	//viewer->addCube(min_point_AABB.x, max_point_AABB.x, min_point_AABB.y, max_point_AABB.y, min_point_AABB.z, max_point_AABB.z, 1.0, 1.0, 0.0, "AABB");
 
 	// visualize result
 	while (!viewer->wasStopped())
@@ -682,8 +664,23 @@ void colorBasedRegionGrowingSegmentation(pcl::PointCloud<pcl::PointXYZRGB>::Ptr 
 
 }
 
+// --------------
+// -----Debug-----
+// --------------
 
 
+void visualizeClusterX(list<OutputCloud> outputCloudList, int clusterIndex) {
+
+	for (list<OutputCloud>::const_iterator iterator = outputCloudList.begin(); iterator != outputCloudList.end(); ++iterator) {
+		
+		OutputCloud cloud = *iterator;
+		PointCloud<PointXYZ>::Ptr cluster = cloud.getClusterX(clusterIndex);
+
+		visualizePointCloud(cluster, clusterIndex);
+	}
+
+	return;
+}
 
 
 // --------------
@@ -756,10 +753,15 @@ main(int argc, char** argv)
 		previousClusters = outputCloud.getClusters();
 		outputCloudList.push_back(outputCloud);
 
-		outputCloud.visualizePointCloudClusters();
+		//outputCloud.visualizePointCloudClusters();
 
 		//cout << "point cloud number of points = " << outputCloud.getPointCloudRGB()->points.size() << endl;
 		//visualizePointCloud(outputCloud.getPointCloudRGB(), 0);
 		
 	}
+
+	visualizeClusterX(outputCloudList, 0);
+	visualizeClusterX(outputCloudList, 1);
+	visualizeClusterX(outputCloudList, 2);
+	visualizeClusterX(outputCloudList, 3);
 }

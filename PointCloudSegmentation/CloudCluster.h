@@ -1,5 +1,6 @@
 
 #include <pcl/common/common_headers.h>
+#include <pcl/io/pcd_io.h>
 
 using namespace std;
 using namespace pcl;
@@ -29,7 +30,7 @@ class CloudCluster {
 		void setClusterIndex(int index) { cluster_index = index; }
 		
 		// methods
-		void writeCluster2File();
+		void writeCluster2File(string filepath);
 
 	
 

@@ -194,7 +194,7 @@ void OutputCloud::determinePointCloudClustersIndex(list<CloudCluster> previousCl
 
 	if (previousClusters.empty()) {
 		int i = 0;
-		for (list<CloudCluster>::const_iterator cloudClusterIter = clusters.begin(); cloudClusterIter != clusters.end(); ++cloudClusterIter)
+		for (list<CloudCluster>::iterator cloudClusterIter = clusters.begin(); cloudClusterIter != clusters.end(); ++cloudClusterIter)
 		{
 			CloudCluster cloudCluster = (*cloudClusterIter);
 			cloudCluster.setClusterIndex(i);
@@ -203,12 +203,12 @@ void OutputCloud::determinePointCloudClustersIndex(list<CloudCluster> previousCl
 	}
 	else {
 		int currentClusterIndex = 0;
-		list<CloudCluster>::const_iterator cloudClusterIter;
+		list<CloudCluster>::iterator cloudClusterIter;
 		for (cloudClusterIter = clusters.begin(); cloudClusterIter != clusters.end(); ++cloudClusterIter)
 		{
 			float minDist = 100.0;
 			CloudCluster cloudCluster = (*cloudClusterIter);
-			for (list<CloudCluster>::const_iterator previousClustersIter = previousClusters.begin(); previousClustersIter != previousClusters.end(); ++previousClustersIter)
+			for (list<CloudCluster>::iterator previousClustersIter = previousClusters.begin(); previousClustersIter != previousClusters.end(); ++previousClustersIter)
 			{
 				CloudCluster previousCloudCluster = (*previousClustersIter);
 				float dist = euclideanDistance(cloudCluster.getClusterCentroid(), previousCloudCluster.getClusterCentroid());
@@ -284,4 +284,24 @@ void OutputCloud::visualizePointCloudClusters(){
 	viewer->close();
 
 	return;
+}
+
+void OutputCloud::writeClusters2File(string filepath) {
+	
+	for (list<CloudCluster>::const_iterator cloudClusterIter = clusters.begin(); cloudClusterIter != clusters.end(); ++cloudClusterIter)
+	{
+		CloudCluster cloudCluster = (*cloudClusterIter);
+		cloudCluster.writeCluster2File(filepath);
+	}
+	return;
+}
+
+PointCloud<PointXYZ>::Ptr OutputCloud::getClusterX(int index) {
+
+	for (list<CloudCluster>::const_iterator cloudClusterIter = clusters.begin(); cloudClusterIter != clusters.end(); ++cloudClusterIter)
+	{
+		CloudCluster cloudCluster = (*cloudClusterIter);
+		if (cloudCluster.getClusterIndex() == index)
+			return cloudCluster.getPointCloudCluster();
+	}
 }

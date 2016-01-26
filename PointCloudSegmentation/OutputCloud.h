@@ -68,7 +68,9 @@ class OutputCloud {
 		void determinePointCloudClustersIndex(list<CloudCluster> previousClusters);
 		void visualizePointCloudClusters();
 
-		void WriteClusters2File();
+		PointCloud<PointXYZ>::Ptr getClusterX(int index);
+
+		void writeClusters2File(string filepath);
 		
 
 };
