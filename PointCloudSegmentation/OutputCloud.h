@@ -38,7 +38,7 @@ class OutputCloud {
 		PointCloud<PointXYZRGB>::Ptr cloudRGB;
 		PointCloud<PointXYZ>::Ptr cloudXYZ;
 
-		list<CloudCluster> clusters;
+		list<CloudCluster*> clusters;
 
 	public:
 
@@ -57,7 +57,7 @@ class OutputCloud {
 
 		void setIndex(int idx) { index = idx; }
 
-		list<CloudCluster> getClusters() const { return clusters; }
+		list<CloudCluster*> getClusters() const { return clusters; }
 
 		// methods
 		void applyCalibrationToPointCloud(PointCloud<PointXYZRGB>::Ptr cloud, string calibrarionFilePath);
@@ -65,7 +65,7 @@ class OutputCloud {
 		void loadPointClouds(map<string, string> filenameByCalibrationpath);
 		void calculatePointCloudClusters();
 		void createCloudClusters(vector<pcl::PointIndices> cluster_indices);
-		void determinePointCloudClustersIndex(list<CloudCluster> previousClusters);
+		void determinePointCloudClustersIndex(list<CloudCluster*> previousClusters);
 		void visualizePointCloudClusters();
 
 		PointCloud<PointXYZ>::Ptr getClusterX(int index);

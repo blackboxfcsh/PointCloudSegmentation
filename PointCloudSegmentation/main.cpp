@@ -697,20 +697,21 @@ main(int argc, char** argv)
 
 // SURFACE
 	// array for the directories where the point clouds are stored
-	/*
+	
 		string outputCloudPathsAndCalibration[3][2] = {
 				{ "C:\\Users\\Public\\Data\\JoaoFiadeiro\\SecondSession\\SecondTestPointClouds\\girafa\\Output2\\sample", "girafa.ini" },
 				{ "C:\\Users\\Public\\Data\\JoaoFiadeiro\\SecondSession\\SecondTestPointClouds\\silvia\\Output2\\sample", "silvia.ini" },
 				{ "C:\\Users\\Public\\Data\\JoaoFiadeiro\\SecondSession\\SecondTestPointClouds\\surface\\Output2\\sample", "surface.ini" }
-	}; // filepath, calibration filename */
+	}; // filepath, calibration filename 
 
 //MINI WORK
-	// array for the directories where the point clouds are stored
+	// array for the directories where the point clouds are stored 
+		/*
 	string outputCloudPathsAndCalibration[3][2] = {
 			{ "D:\\Data\\JoaoFiadeiro\\SecondSession\\SecondTestPointClouds\\girafa\\Output2\\sample", "girafa.ini" },
 			{ "D:\\Data\\JoaoFiadeiro\\SecondSession\\SecondTestPointClouds\\silvia\\Output2\\sample", "silvia.ini" },
 			{ "D:\\Data\\JoaoFiadeiro\\SecondSession\\SecondTestPointClouds\\surface\\Output2\\sample", "surface.ini" }
-	}; // filepath, calibration filename
+	}; // filepath, calibration filename */
 
 
 	//load point cloud filenames into to the appropriate lists
@@ -726,7 +727,7 @@ main(int argc, char** argv)
 		return -1;
 	}
 
-	list<CloudCluster> previousClusters;
+	list<CloudCluster*> previousClusters;
 	int numberOfPointCloudFiles = pointCloudFilesSilvia.size();
 	for (int i = 0; i < numberOfPointCloudFiles; i++){
 		
@@ -753,15 +754,15 @@ main(int argc, char** argv)
 		previousClusters = outputCloud.getClusters();
 		outputCloudList.push_back(outputCloud);
 
-		//outputCloud.visualizePointCloudClusters();
+		outputCloud.visualizePointCloudClusters();
 
 		//cout << "point cloud number of points = " << outputCloud.getPointCloudRGB()->points.size() << endl;
 		//visualizePointCloud(outputCloud.getPointCloudRGB(), 0);
 		
 	}
 
-	visualizeClusterX(outputCloudList, 0);
-	visualizeClusterX(outputCloudList, 1);
-	visualizeClusterX(outputCloudList, 2);
-	visualizeClusterX(outputCloudList, 3);
+	//visualizeClusterX(outputCloudList, 0);
+	//visualizeClusterX(outputCloudList, 1);
+	//visualizeClusterX(outputCloudList, 2);
+	//visualizeClusterX(outputCloudList, 3);
 }

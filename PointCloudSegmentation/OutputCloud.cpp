@@ -6,6 +6,12 @@ OutputCloud::~OutputCloud() {
 
 	cloudRGB.reset();
 	cloudXYZ.reset();
+
+	list<CloudCluster*>::iterator cloudClusterIter;
+	for (cloudClusterIter = clusters.begin(); cloudClusterIter != clusters.end(); ++cloudClusterIter)
+	{
+		delete (*cloudClusterIter);
+	}
 }
 
 void OutputCloud::applyCalibrationToPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, string calibrarionFilePath){
@@ -142,8 +148,9 @@ void OutputCloud::calculatePointCloudClusters() {
 	tree->setInputCloud(cloudXYZ);
 
 	std::vector<pcl::PointIndices> cluster_indices;
-	ec.setClusterTolerance(0.028); // 2,8cm
-	ec.setMinClusterSize(2000);
+	//ec.setClusterTolerance(0.028); // 2,8cm 
+	ec.setClusterTolerance(0.028);
+	ec.setMinClusterSize(4000);
 	//ec.setMaxClusterSize(40000);
 	ec.setSearchMethod(tree);
 	ec.setInputCloud(cloudXYZ);
@@ -152,8 +159,6 @@ void OutputCloud::calculatePointCloudClusters() {
 	createCloudClusters(cluster_indices);
 
 	return;
-
-
 }
 
 void OutputCloud::createCloudClusters(vector<pcl::PointIndices> cluster_indices) {
@@ -179,9 +184,9 @@ void OutputCloud::createCloudClusters(vector<pcl::PointIndices> cluster_indices)
 			<< centroid[1] << ", "
 			<< centroid[2] << ")." << std::endl;
 
-		CloudCluster cloudCluster;
-		cloudCluster.setClusterCentroid(centroid[0], centroid[1], centroid[2]);
-		cloudCluster.setPointCloudCluster(cloud_cluster);
+		CloudCluster *cloudCluster = new CloudCluster();
+		cloudCluster->setClusterCentroid(centroid[0], centroid[1], centroid[2]);
+		cloudCluster->setPointCloudCluster(cloud_cluster);
 
 		clusters.push_back(cloudCluster);
 	}
@@ -190,42 +195,42 @@ void OutputCloud::createCloudClusters(vector<pcl::PointIndices> cluster_indices)
 }
 
 
-void OutputCloud::determinePointCloudClustersIndex(list<CloudCluster> previousClusters) {
+void OutputCloud::determinePointCloudClustersIndex(list<CloudCluster*> previousClusters) {
 
 	if (previousClusters.empty()) {
 		int i = 0;
-		for (list<CloudCluster>::iterator cloudClusterIter = clusters.begin(); cloudClusterIter != clusters.end(); ++cloudClusterIter)
+		for (list<CloudCluster*>::iterator cloudClusterIter = clusters.begin(); cloudClusterIter != clusters.end(); ++cloudClusterIter)
 		{
-			CloudCluster cloudCluster = (*cloudClusterIter);
-			cloudCluster.setClusterIndex(i);
+			CloudCluster *cloudCluster = (*cloudClusterIter);
+			cloudCluster->setClusterIndex(i);
 			i++;
 		}
 	}
 	else {
 		int currentClusterIndex = 0;
-		list<CloudCluster>::iterator cloudClusterIter;
+		list<CloudCluster*>::iterator cloudClusterIter;
 		for (cloudClusterIter = clusters.begin(); cloudClusterIter != clusters.end(); ++cloudClusterIter)
 		{
 			float minDist = 100.0;
-			CloudCluster cloudCluster = (*cloudClusterIter);
-			for (list<CloudCluster>::iterator previousClustersIter = previousClusters.begin(); previousClustersIter != previousClusters.end(); ++previousClustersIter)
+			CloudCluster* cloudCluster = (*cloudClusterIter);
+			for (list<CloudCluster*>::iterator previousClustersIter = previousClusters.begin(); previousClustersIter != previousClusters.end(); ++previousClustersIter)
 			{
-				CloudCluster previousCloudCluster = (*previousClustersIter);
-				float dist = euclideanDistance(cloudCluster.getClusterCentroid(), previousCloudCluster.getClusterCentroid());
+				CloudCluster *previousCloudCluster = (*previousClustersIter);
+				float dist = euclideanDistance(cloudCluster->getClusterCentroid(), previousCloudCluster->getClusterCentroid());
 				if (dist < minDist) {
 					minDist = dist;
-					currentClusterIndex = previousCloudCluster.getClusterIndex();
+					currentClusterIndex = previousCloudCluster->getClusterIndex();
 				}
 			}
-			cloudCluster.setClusterIndex(currentClusterIndex);
+			cloudCluster->setClusterIndex(currentClusterIndex);
 		}
 		//check if there are more clusters in the current list 
 		while (cloudClusterIter != clusters.end()) {
-			CloudCluster cloudCluster = (*cloudClusterIter);
-			cloudCluster.setClusterIndex(++currentClusterIndex);
+			CloudCluster* cloudCluster = (*cloudClusterIter);
+			cloudCluster->setClusterIndex(++currentClusterIndex);
 			cloudClusterIter++;
 		}
-	}
+	} 
 	return;
 }
 
@@ -234,11 +239,11 @@ void OutputCloud::visualizePointCloudClusters(){
 	boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
 	viewer->setBackgroundColor(0, 0, 0);
 	int j = 0;
-	for (list<CloudCluster>::const_iterator cloudClusterIter = clusters.begin(); cloudClusterIter != clusters.end(); ++cloudClusterIter)
+	for (list<CloudCluster*>::const_iterator cloudClusterIter = clusters.begin(); cloudClusterIter != clusters.end(); ++cloudClusterIter)
 	{
 		cout << "cluster " << j << endl;
 
-		PointCloud<PointXYZ>::Ptr pointCloudCluster = (*cloudClusterIter).getPointCloudCluster();
+		PointCloud<PointXYZ>::Ptr pointCloudCluster = (*cloudClusterIter)->getPointCloudCluster();
 
 		// calculate bounding box
 		pcl::MomentOfInertiaEstimation <pcl::PointXYZ> feature_extractor;
@@ -288,20 +293,20 @@ void OutputCloud::visualizePointCloudClusters(){
 
 void OutputCloud::writeClusters2File(string filepath) {
 	
-	for (list<CloudCluster>::const_iterator cloudClusterIter = clusters.begin(); cloudClusterIter != clusters.end(); ++cloudClusterIter)
+	for (list<CloudCluster*>::const_iterator cloudClusterIter = clusters.begin(); cloudClusterIter != clusters.end(); ++cloudClusterIter)
 	{
-		CloudCluster cloudCluster = (*cloudClusterIter);
-		cloudCluster.writeCluster2File(filepath);
+		CloudCluster* cloudCluster = (*cloudClusterIter);
+		cloudCluster->writeCluster2File(filepath);
 	}
 	return;
 }
 
 PointCloud<PointXYZ>::Ptr OutputCloud::getClusterX(int index) {
 
-	for (list<CloudCluster>::const_iterator cloudClusterIter = clusters.begin(); cloudClusterIter != clusters.end(); ++cloudClusterIter)
+	for (list<CloudCluster*>::const_iterator cloudClusterIter = clusters.begin(); cloudClusterIter != clusters.end(); ++cloudClusterIter)
 	{
-		CloudCluster cloudCluster = (*cloudClusterIter);
-		if (cloudCluster.getClusterIndex() == index)
-			return cloudCluster.getPointCloudCluster();
+		CloudCluster* cloudCluster = (*cloudClusterIter);
+		if (cloudCluster->getClusterIndex() == index)
+			return cloudCluster->getPointCloudCluster();
 	}
 }
