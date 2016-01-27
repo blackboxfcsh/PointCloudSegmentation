@@ -514,13 +514,14 @@ vector<string> getFilesInDirectory(const string directory)
 }
 
 vector<string> sortFilenames(vector<string> filenames){
-
-	vector<int> temp = vector<int>(sizeof(filenames));
-	vector<string> sortedFilenames = vector<string>(sizeof(filenames));
+	
+	//int size = (filenames.size());
+	vector<int> temp; // = vector<int>(size);
+	vector<string> sortedFilenames;// = vector<string>(size);
 	string path = "";
 	string perfix = "outputCloud";
 
-	temp.clear();
+	//temp.clear();
 	vector<string>::const_iterator iter;
 	for (iter = filenames.begin(); iter != filenames.end(); ++iter)
 	{
@@ -682,6 +683,19 @@ void visualizeClusterX(list<OutputCloud> outputCloudList, int clusterIndex) {
 	return;
 }
 
+/*
+void WriteClusters2File(list<OutputCloud> outputCloudList, string filepath) {
+
+	for (list<OutputCloud>::const_iterator iterator = outputCloudList.begin(); iterator != outputCloudList.end(); ++iterator) {
+
+		OutputCloud cloud = *iterator;
+		cloud.writeClusters2File(filepath);
+
+	}
+
+	return;
+}*/
+
 
 // --------------
 // -----Main-----
@@ -714,11 +728,13 @@ main(int argc, char** argv)
 	}; // filepath, calibration filename */
 
 
-	//load point cloud filenames into to the appropriate lists
-	pointCloudFilesGirafa = getFilesInDirectory(outputCloudPathsAndCalibration[0][0]);
-	pointCloudFilesSilvia = getFilesInDirectory(outputCloudPathsAndCalibration[1][0]);
-	pointCloudFilesSurface = getFilesInDirectory(outputCloudPathsAndCalibration[2][0]);
+	//load point cloud filenames into to the appropriate lists and sort them
+	pointCloudFilesGirafa = sortFilenames(getFilesInDirectory(outputCloudPathsAndCalibration[0][0]));
+	pointCloudFilesSilvia = sortFilenames(getFilesInDirectory(outputCloudPathsAndCalibration[1][0]));
+	pointCloudFilesSurface = sortFilenames(getFilesInDirectory(outputCloudPathsAndCalibration[2][0]));
 	
+
+
 	if (pointCloudFilesGirafa.size() != pointCloudFilesSilvia.size()
 		&& pointCloudFilesSilvia.size() != pointCloudFilesSurface.size()
 		&& pointCloudFilesGirafa.size() != pointCloudFilesSurface.size()) {
@@ -726,7 +742,7 @@ main(int argc, char** argv)
 		cout << "ERROR: number of point clouds for each viewpoint doesnt match!" << endl;
 		return -1;
 	}
-
+	
 	list<CloudCluster*> previousClusters;
 	int numberOfPointCloudFiles = pointCloudFilesSilvia.size();
 	for (int i = 0; i < numberOfPointCloudFiles; i++){
@@ -752,6 +768,9 @@ main(int argc, char** argv)
 		outputCloud.calculatePointCloudClusters();
 		outputCloud.determinePointCloudClustersIndex(previousClusters);
 		previousClusters = outputCloud.getClusters();
+		string filepath = "C:\\Users\\Public\\Data\\JoaoFiadeiro\\SecondSession\\SecondTestPointClouds\\clusters\\OutputCloud" + boost::lexical_cast<std::string>(i);
+		cout << filepath << endl;
+		//outputCloud.writeClusters2File(filepath);
 		outputCloudList.push_back(outputCloud);
 
 		outputCloud.visualizePointCloudClusters();
@@ -760,6 +779,8 @@ main(int argc, char** argv)
 		//visualizePointCloud(outputCloud.getPointCloudRGB(), 0);
 		
 	}
+
+	//WriteClusters2File(outputCloudList, "C:\\Users\\Public\\Data\\JoaoFiadeiro\\SecondSession\\SecondTestPointClouds\\clusters");
 
 	//visualizeClusterX(outputCloudList, 0);
 	//visualizeClusterX(outputCloudList, 1);

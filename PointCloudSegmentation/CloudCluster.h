@@ -30,7 +30,7 @@ class CloudCluster {
 		void setClusterIndex(int index) { cluster_index = index; }
 		
 		// methods
-		void writeCluster2File(string filepath);
+		void writeCluster2File(string filepath, PCDWriter writer);
 
 	
 

@@ -7,11 +7,11 @@ OutputCloud::~OutputCloud() {
 	cloudRGB.reset();
 	cloudXYZ.reset();
 
-	list<CloudCluster*>::iterator cloudClusterIter;
+	/*list<CloudCluster*>::iterator cloudClusterIter;
 	for (cloudClusterIter = clusters.begin(); cloudClusterIter != clusters.end(); ++cloudClusterIter)
 	{
 		delete (*cloudClusterIter);
-	}
+	}*/
 }
 
 void OutputCloud::applyCalibrationToPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, string calibrarionFilePath){
@@ -28,7 +28,7 @@ void OutputCloud::applyCalibrationToPointCloud(pcl::PointCloud<pcl::PointXYZRGB>
 	float *translationRotation = new float[6]; // posx, posy, posz, rotx, roty, rotz
 	size_t p;
 	int i = 0;
-	
+
 	while (std::getline(f, line))
 	{
 		if ((p = line.find(delimiter)) != std::string::npos) {
@@ -51,43 +51,27 @@ void OutputCloud::applyCalibrationToPointCloud(pcl::PointCloud<pcl::PointXYZRGB>
 	cout << "translation x = " << translationRotation[0] << " y = " << translationRotation[1] << " z = " << translationRotation[2] << endl;
 	cout << "rotation x = " << translationRotation[3] << " y = " << translationRotation[4] << " z = " << translationRotation[5] << endl;
 
-
-	Eigen::Affine3f transform_2 = Eigen::Affine3f::Identity();
-
-	// translate to 0
-	// then rotate 
-	// then translate to initial position
-
-	// Define a translation to 0,0,0.
-	transform_2.translation() << -centroid[0], -centroid[1], -centroid[2];
-
-
 	float thetaX = deg2rad(translationRotation[3]); // The angle of rotation in radians
 	float thetaY = deg2rad(translationRotation[4]);; // The angle of rotation in radians
 	float thetaZ = deg2rad(translationRotation[5]);; // The angle of rotation in radians 
-	// The  rotation matrix; tetha radians arround X, Y and Z axis
-	transform_2.rotate(Eigen::AngleAxisf(thetaX, Eigen::Vector3f::UnitX()));
-	transform_2.rotate(Eigen::AngleAxisf(thetaY, Eigen::Vector3f::UnitY()));
-	transform_2.rotate(Eigen::AngleAxisf(thetaZ, Eigen::Vector3f::UnitZ()));
 
-	// translate to original position
-	transform_2.translation() << centroid[0], centroid[1], centroid[2];
+	// setting up the quaternion and the translation
+	Eigen::AngleAxisd rollAngle(thetaZ, Eigen::Vector3d::UnitZ());
+	Eigen::AngleAxisd yawAngle(thetaY, Eigen::Vector3d::UnitY());
+	Eigen::AngleAxisd pitchAngle(thetaX, Eigen::Vector3d::UnitX());
+	Eigen::Vector3d translate(translationRotation[0], translationRotation[1], translationRotation[2]);
+	Eigen::Quaterniond q = rollAngle * yawAngle * pitchAngle;
 
-	// translate to calibration position
-	transform_2.translation() << translationRotation[0], translationRotation[1], translationRotation[2]; \
-
-	// Apply translate to origin, rotation, translate no original position, translate to calibration position
-	pcl::transformPointCloud(*cloud, *tmp, transform_2);
+	pcl::transformPointCloud(*cloud, *cloud, translate, q);
 
 	cloud = tmp;
 
 	// Print the transformation
-	printf("\nMethod #2: using an Affine3f\n");
-	std::cout << transform_2.matrix() << std::endl;
+	printf("\nMethod #3: using a Quaternion\n");
+	std::cout << q.matrix() << std::endl;
 
 	return;
 }
-
 
 void OutputCloud::loadPointCloudNoFormat(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, string pointCloudPath){
 	std::ifstream f;
@@ -293,10 +277,11 @@ void OutputCloud::visualizePointCloudClusters(){
 
 void OutputCloud::writeClusters2File(string filepath) {
 	
+	PCDWriter writer;
 	for (list<CloudCluster*>::const_iterator cloudClusterIter = clusters.begin(); cloudClusterIter != clusters.end(); ++cloudClusterIter)
 	{
 		CloudCluster* cloudCluster = (*cloudClusterIter);
-		cloudCluster->writeCluster2File(filepath);
+		cloudCluster->writeCluster2File(filepath, writer);
 	}
 	return;
 }

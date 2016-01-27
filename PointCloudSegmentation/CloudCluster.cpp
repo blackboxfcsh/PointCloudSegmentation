@@ -14,11 +14,10 @@ void CloudCluster::setClusterCentroid(float x, float y, float z){
 	cluster_centroid.z = z;
 }
 
-void CloudCluster::writeCluster2File(string filepath) {
+void CloudCluster::writeCluster2File(string filepath, PCDWriter writer) {
 
 	//write cluster data
-	pcl::PCDWriter writer;
-	std::stringstream ss;
+	stringstream ss;
 	ss << filepath << "_cloud_cluster_" << cluster_index << ".pcd";
 	writer.write<PointXYZ>(ss.str(), *pointCloudCluster, false); //*	
 }
