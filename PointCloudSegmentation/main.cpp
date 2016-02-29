@@ -23,6 +23,12 @@
 #include <pcl/common/transforms.h>
 #include <pcl/features/moment_of_inertia_estimation.h>
 
+// conditional segmentation
+
+#include <pcl/filters/voxel_grid.h>
+#include <pcl/features/normal_3d.h>
+#include <pcl/segmentation/conditional_euclidean_clustering.h>
+
 //END ALREADY IN OUTPUTCLOUD.H
 
 // Euclidean Cluster Extraction
@@ -44,7 +50,8 @@
 
 #include <boost/format.hpp>
 
-#include "OutputCloud.h"
+#include "Node.h"
+//#include "OutputCloud.h"
 
 using namespace std;
 using namespace pcl;
@@ -333,7 +340,63 @@ void visualizePointCloudClusters(std::vector<pcl::PointIndices> cluster_indices,
 	return;
 }
 
-void visualizePointCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, int clusterID){
+void visualizePointCloudClusters(OutputCloud* outputCloud, int frame){
+
+	boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("Viewer 3D"));
+	viewer->setBackgroundColor(0, 0, 0);
+	viewer->addCoordinateSystem(1.0);
+	char str[512];
+	sprintf(str, "FRAME%i", frame);
+	viewer->addText(str, 100, 100);
+
+	// TODO: ADD BOUNDING BOX
+	int i = 0;
+	list<CloudCluster*> clusters = outputCloud->getClusters();
+	cout << "number of clusters = " << clusters.size() << endl;
+	for each (CloudCluster* cluster in clusters)
+	{
+		PointCloud<PointXYZ>::Ptr cloud = cluster->getPointCloudClusterXYZ();
+
+		// calculate bounding box
+		pcl::MomentOfInertiaEstimation <pcl::PointXYZ> feature_extractor;
+		feature_extractor.setInputCloud(cloud);
+		feature_extractor.compute();
+
+		std::vector <float> moment_of_inertia;
+		std::vector <float> eccentricity;
+		pcl::PointXYZ min_point_AABB;
+		pcl::PointXYZ max_point_AABB;
+
+		feature_extractor.getMomentOfInertia(moment_of_inertia);
+		feature_extractor.getEccentricity(eccentricity);
+		feature_extractor.getAABB(min_point_AABB, max_point_AABB);
+
+		
+		pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> single_color(cloud, (i * 3 * 10), 80, i * 3 * 20);
+		viewer->addPointCloud<pcl::PointXYZ>(cloud, single_color, "sample cloud" + i);
+
+		//pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(cloud);
+		//viewer->addPointCloud<pcl::PointXYZRGB>(cloud, rgb, "sample cloud");
+		viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "sample cloud" + i); (cloud);
+		viewer->addCube(min_point_AABB.x, max_point_AABB.x, min_point_AABB.y, max_point_AABB.y, min_point_AABB.z, max_point_AABB.z, 1.0, 1.0, 0.0, "AABB" + i);
+
+		i++;
+	}
+
+	// visualize result
+	while (!viewer->wasStopped())
+	{
+		viewer->spinOnce(100);
+		boost::this_thread::sleep(boost::posix_time::microseconds(100000));
+	}
+
+	// closes the window after pressing 'q'
+	viewer->close();
+
+	return;
+}
+
+void visualizePointCloudCluster(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, int clusterID){
 
 	boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("Viewer 3D"));
 	viewer->setBackgroundColor(0, 0, 0);
@@ -352,6 +415,31 @@ void visualizePointCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, int clusterI
 	//viewer->addPointCloud(cloud);
 	//viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "sample cloud"); (cloud);
 	//viewer->addCube(min_point_AABB.x, max_point_AABB.x, min_point_AABB.y, max_point_AABB.y, min_point_AABB.z, max_point_AABB.z, 1.0, 1.0, 0.0, "AABB");
+
+	// visualize result
+	while (!viewer->wasStopped())
+	{
+		viewer->spinOnce(100);
+		boost::this_thread::sleep(boost::posix_time::microseconds(100000));
+	}
+
+	// closes the window after pressing 'q'
+	viewer->close();
+
+	return;
+}
+
+void visualizePointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud){
+
+	boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("Viewer 3D"));
+	viewer->setBackgroundColor(0, 0, 0);
+	viewer->addCoordinateSystem(1.0);
+
+	// visualize clusters
+	pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(cloud);
+	viewer->addPointCloud<pcl::PointXYZRGB>(cloud, rgb, "sample cloud");
+	viewer->addPointCloud(cloud);
+	viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "sample cloud"); (cloud);
 
 	// visualize result
 	while (!viewer->wasStopped())
@@ -541,7 +629,7 @@ vector<string> sortFilenames(vector<string> filenames){
 	for (iter_int = temp.begin(); iter_int != temp.end(); ++iter_int){
 		string name = path + '\\' + perfix + boost::lexical_cast<string>(*iter_int);
 		sortedFilenames.push_back(name);
-		cout << name << endl;
+		//cout << name << endl;
 	}
 
 	return sortedFilenames;
@@ -647,10 +735,10 @@ void colorBasedRegionGrowingSegmentation(pcl::PointCloud<pcl::PointXYZRGB>::Ptr 
 	reg.setInputCloud(point_cloud_ptr);
 	reg.setIndices(indices);
 	reg.setSearchMethod(tree);
-	reg.setDistanceThreshold(5);
-	reg.setPointColorThreshold(10);
-	reg.setRegionColorThreshold(5);
-	reg.setMinClusterSize(100);
+	reg.setDistanceThreshold(6);
+	reg.setPointColorThreshold(6);
+	reg.setRegionColorThreshold(6);
+	reg.setMinClusterSize(1000);
 
 	std::vector <pcl::PointIndices> clusters;
 	reg.extract(clusters);
@@ -670,17 +758,47 @@ void colorBasedRegionGrowingSegmentation(pcl::PointCloud<pcl::PointXYZRGB>::Ptr 
 // --------------
 
 
-void visualizeClusterX(list<OutputCloud> outputCloudList, int clusterIndex) {
+void visualizeOuputCloudX(list<OutputCloud*> outputCloudList, int elemIdx) {
 
-	for (list<OutputCloud>::const_iterator iterator = outputCloudList.begin(); iterator != outputCloudList.end(); ++iterator) {
-		
-		OutputCloud cloud = *iterator;
-		PointCloud<PointXYZ>::Ptr cluster = cloud.getClusterX(clusterIndex);
 
-		visualizePointCloud(cluster, clusterIndex);
+	if (outputCloudList.size() > elemIdx) {
+
+		list<OutputCloud*>::const_iterator iterator = outputCloudList.begin();
+		advance(iterator, elemIdx);
+
+		visualizePointCloudClusters(*iterator, elemIdx);
 	}
 
 	return;
+}
+
+void visualizeClusterX(PointCloud<PointXYZ>::Ptr cluster, int clusterID) {
+
+	visualizePointCloudCluster(cluster, clusterID);
+	return;
+}
+
+void readOutputCloudClustersFiles(){
+
+	string path = "C:\\Users\\Public\\Data\\JoaoFiadeiro\\SecondSession\\SecondTestPointClouds\\test";
+
+	vector<string> clusterFiles = getFilesInDirectory(path);
+
+	int numberOfClusterFiles = clusterFiles.size();
+	for (int i = 0; i < numberOfClusterFiles; i++){
+		
+		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
+		if (pcl::io::loadPCDFile<pcl::PointXYZ>(clusterFiles[i], *cloud) == -1) //* load the file 
+		{
+			cout << "Couldn't read file " << clusterFiles[i] << endl;
+			return; 
+		}
+		else {
+			cout << "file " << clusterFiles[i] << endl;
+			visualizePointCloudCluster(cloud, i);
+		}
+
+	}
 }
 
 /*
@@ -696,35 +814,84 @@ void WriteClusters2File(list<OutputCloud> outputCloudList, string filepath) {
 	return;
 }*/
 
+// ----------------------------------------------------------------------
+// -----Methods to use with Node, OutputCloud and CloudCluster classes-----
+// ----------------------------------------------------------------------
 
-// --------------
-// -----Main-----
-// --------------
-int
-main(int argc, char** argv)
-{
+list<CloudCluster*> getPreviousClusters(OutputCloud* outputCloud, list<Node*> nodeList, FILE* logFile) {
+
+	int diff = 10;
+	int outputCloudIdxTemp = -1;
+	list<CloudCluster*> tempList;
+
+	/*if (!nodeList.empty()) {
+		OutputCloud* previousOutputCloud = nodeList.back()->getOutputCloud();
+		outputCloudIdxTemp = previousOutputCloud->getIndex();
+		tempList = previousOutputCloud->getClusters();
+	}*/
+
+
+	for (list<Node*>::const_reverse_iterator iter = nodeList.rbegin(); iter != nodeList.rend(); ++iter) {
+
+		outputCloudIdxTemp = (*iter)->getOutputCloud()->getIndex();
+		int clustersSize = outputCloud->getClusters().size();
+		tempList = (*iter)->getOutputCloud()->getClusters();
+		int previousClustersSize = (*iter)->getOutputCloud()->getClusters().size();
+		if (clustersSize == previousClustersSize) {
+			// delete outputCloudIdxTemp - just for debug
+			outputCloudIdxTemp = (*iter)->getOutputCloud()->getIndex();
+			fprintf(logFile, "outputCloud i :%d - clusters size :%d | outputCloud i:%d - previous clusters size:%d \n", outputCloud->getIndex(),
+				clustersSize, outputCloudIdxTemp, previousClustersSize);
+			return (*iter)->getOutputCloud()->getClusters();
+
+		}
+		else {
+			int tempDiff = abs(clustersSize - previousClustersSize);
+			if (diff > tempDiff) {
+				diff = tempDiff;
+				tempList = (*iter)->getOutputCloud()->getClusters();
+				// delete outputCloudIdxTemp - just for debug
+				outputCloudIdxTemp = (*iter)->getOutputCloud()->getIndex();
+			}
+		}
+	}
+
+	fprintf(logFile, "outputCloud i :%d - clusters size :%d | outputCloud i:%d - previous clusters size:%d \n", outputCloud->getIndex(), 
+		outputCloud->getClusters().size(), outputCloudIdxTemp, tempList.size()); 
+	
+	return tempList;
+}
+
+void generateAndWriteOutputCloudClusters(){
+
 	// map allocator for the point clouds filenames 
 	vector<string> pointCloudFilesGirafa;
 	vector<string> pointCloudFilesSilvia;
 	vector<string> pointCloudFilesSurface;
-	list<OutputCloud> outputCloudList;
+	list<Node*> outputCloudNodeList;
+	list<Node*> tempOutputCloudNodeList;
 
-// SURFACE
+	// for debug purposes
+	list<OutputCloud*> outputCloudList;
+	FILE* logFile;
+	logFile = fopen("logFile.txt", "w");
+
+	// SURFACE
 	// array for the directories where the point clouds are stored
-	
-		string outputCloudPathsAndCalibration[3][2] = {
-				{ "C:\\Users\\Public\\Data\\JoaoFiadeiro\\SecondSession\\SecondTestPointClouds\\girafa\\Output2\\sample", "girafa.ini" },
-				{ "C:\\Users\\Public\\Data\\JoaoFiadeiro\\SecondSession\\SecondTestPointClouds\\silvia\\Output2\\sample", "silvia.ini" },
-				{ "C:\\Users\\Public\\Data\\JoaoFiadeiro\\SecondSession\\SecondTestPointClouds\\surface\\Output2\\sample", "surface.ini" }
+
+	string outputCloudPathsAndCalibration[3][2] = {
+			{ "C:\\Users\\Public\\Data\\JoaoFiadeiro\\SecondSession\\SecondTestPointClouds\\girafa\\Output2", "girafa.ini" },
+			{ "C:\\Users\\Public\\Data\\JoaoFiadeiro\\SecondSession\\SecondTestPointClouds\\silvia\\Output2", "silvia.ini" },
+			{ "C:\\Users\\Public\\Data\\JoaoFiadeiro\\SecondSession\\SecondTestPointClouds\\surface\\Output2", "surface.ini" }
 	}; // filepath, calibration filename 
 
-//MINI WORK
+	//MINI WORK
 	// array for the directories where the point clouds are stored 
-		/*
+	/*
 	string outputCloudPathsAndCalibration[3][2] = {
-			{ "D:\\Data\\JoaoFiadeiro\\SecondSession\\SecondTestPointClouds\\girafa\\Output2\\sample", "girafa.ini" },
-			{ "D:\\Data\\JoaoFiadeiro\\SecondSession\\SecondTestPointClouds\\silvia\\Output2\\sample", "silvia.ini" },
-			{ "D:\\Data\\JoaoFiadeiro\\SecondSession\\SecondTestPointClouds\\surface\\Output2\\sample", "surface.ini" }
+	{ "D:\\Data\\JoaoFiadeiro\\SecondSession\\SecondTestPointClouds\\girafa\\Output2\\sample", "girafa.ini" },
+	{ "D:\\Data\\JoaoFiadeiro\\SecondSession\\SecondTestPointClouds\\silvia\\Output2\\sample", "silvia.ini" },
+	{ "D:\\Data\\JoaoFiadeiro\\SecondSession\\SecondTestPointClouds\\surface\\Output2\\sample", "surface.ini" }
 	}; // filepath, calibration filename */
 
 
@@ -732,7 +899,7 @@ main(int argc, char** argv)
 	pointCloudFilesGirafa = sortFilenames(getFilesInDirectory(outputCloudPathsAndCalibration[0][0]));
 	pointCloudFilesSilvia = sortFilenames(getFilesInDirectory(outputCloudPathsAndCalibration[1][0]));
 	pointCloudFilesSurface = sortFilenames(getFilesInDirectory(outputCloudPathsAndCalibration[2][0]));
-	
+
 
 
 	if (pointCloudFilesGirafa.size() != pointCloudFilesSilvia.size()
@@ -740,50 +907,168 @@ main(int argc, char** argv)
 		&& pointCloudFilesGirafa.size() != pointCloudFilesSurface.size()) {
 
 		cout << "ERROR: number of point clouds for each viewpoint doesnt match!" << endl;
-		return -1;
+		return;
 	}
-	
-	list<CloudCluster*> previousClusters;
+
+	//list<CloudCluster*> previousClusters;
 	int numberOfPointCloudFiles = pointCloudFilesSilvia.size();
 	for (int i = 0; i < numberOfPointCloudFiles; i++){
-		
-		OutputCloud outputCloud;
+
+		Node* node = new Node();
+		OutputCloud* outputCloud = new OutputCloud();
 		map<string, string> filenameByCalibrationpath;
-		
+
 		//girafa
 		filenameByCalibrationpath.insert(make_pair(pointCloudFilesGirafa[i], outputCloudPathsAndCalibration[0][1]));
-		cout << "filename = " << pointCloudFilesGirafa[i] << " calibration file = " << outputCloudPathsAndCalibration[0][1] << endl;
+		//cout << "filename = " << pointCloudFilesGirafa[i] << " calibration file = " << outputCloudPathsAndCalibration[0][1] << endl;
 		// silvia
 		filenameByCalibrationpath.insert(make_pair(pointCloudFilesSilvia[i], outputCloudPathsAndCalibration[1][1]));
-		cout << "filename = " << pointCloudFilesSilvia[i] << " calibration file = " << outputCloudPathsAndCalibration[1][1] << endl;
+		//cout << "filename = " << pointCloudFilesSilvia[i] << " calibration file = " << outputCloudPathsAndCalibration[1][1] << endl;
 		// surface
 		filenameByCalibrationpath.insert(make_pair(pointCloudFilesSurface[i], outputCloudPathsAndCalibration[2][1]));
-		cout << "filename = " << pointCloudFilesSurface[i] << " calibration file = " << outputCloudPathsAndCalibration[2][1] << endl;
+		//cout << "filename = " << pointCloudFilesSurface[i] << " calibration file = " << outputCloudPathsAndCalibration[2][1] << endl;
 
-		outputCloud.loadPointClouds(filenameByCalibrationpath);
+		outputCloud->loadPointClouds(filenameByCalibrationpath);
 		filenameByCalibrationpath.clear();
 		//outputCloudList*/
-
-		//calculate point cloud clusters
-		outputCloud.calculatePointCloudClusters();
-		outputCloud.determinePointCloudClustersIndex(previousClusters);
-		previousClusters = outputCloud.getClusters();
-		string filepath = "C:\\Users\\Public\\Data\\JoaoFiadeiro\\SecondSession\\SecondTestPointClouds\\clusters\\OutputCloud" + boost::lexical_cast<std::string>(i);
-		cout << filepath << endl;
-		//outputCloud.writeClusters2File(filepath);
-		outputCloudList.push_back(outputCloud);
-
-		outputCloud.visualizePointCloudClusters();
-
-		//cout << "point cloud number of points = " << outputCloud.getPointCloudRGB()->points.size() << endl;
-		//visualizePointCloud(outputCloud.getPointCloudRGB(), 0);
 		
+		//calculate point cloud clusters
+		outputCloud->setLogFile(logFile);
+		outputCloud->setIndex(i);
+		outputCloud->calculatePointCloudClusters();
+		outputCloud->estimateClusterNormals();
+		outputCloud->determinePointCloudClustersIndex(getPreviousClusters(outputCloud, outputCloudNodeList, logFile));
+		//previousClusters = outputCloud->getClusters();
+		string filepath = "C:\\Users\\Public\\Data\\JoaoFiadeiro\\SecondSession\\SecondTestPointClouds\\clusters\\OutputCloud" + boost::lexical_cast<std::string>(i);
+		//cout << filepath << endl;
+		outputCloud->writeClusters2PLYFile(filepath);
+
+		fprintf(logFile, " wrote outputCloud %d clusters to file \n", i);
+		cout << "wrote outputCloud " << i << " clusters to file" << endl;
+
+		if (outputCloudNodeList.empty())
+			node->setPreviousNode(NULL);
+		else {
+			node->setPreviousNode(tempOutputCloudNodeList.front());
+			tempOutputCloudNodeList.pop_front();
+		}
+		node->setOutuputCloud(outputCloud);
+
+		outputCloudList.push_back(outputCloud);
+		outputCloudNodeList.push_back(node);
+		tempOutputCloudNodeList.push_back(node);
+
+
+		//debug point cloud, clusters and normals
+		//visualizePointCloud(outputCloud->getPointCloudRGB());
+		//outputCloud->visualizePointCloudClusters();
+		//outputCloud->visualizePointCloudClustersNormals();
+
+		//for (int i = 0; i < previousClusters.size(); i++)
+		//	cout << "cluster " << i << " number of points = " << outputCloud.getClusterX(i)->points.size() << endl;
+		//visualizePointCloud(outputCloud.getPointCloudRGB(), 0);
+
 	}
 
-	//WriteClusters2File(outputCloudList, "C:\\Users\\Public\\Data\\JoaoFiadeiro\\SecondSession\\SecondTestPointClouds\\clusters");
+	fclose(logFile);
 
-	//visualizeClusterX(outputCloudList, 0);
-	//visualizeClusterX(outputCloudList, 1);
-	//visualizeClusterX(outputCloudList, 2);
-	//visualizeClusterX(outputCloudList, 3);
+	//visualizeOuputCloudX(outputCloudList, 10);
+
+	return;
+
+}
+
+void generateClustersColorBasedRegionGrowing() {
+
+
+	// map allocator for the point clouds filenames 
+	vector<string> pointCloudFilesGirafa;
+	vector<string> pointCloudFilesSilvia;
+	vector<string> pointCloudFilesSurface;
+	//list<Node*> outputCloudNodeList;
+	//list<Node*> tempOutputCloudNodeList;
+
+	// for debug purposes
+	list<OutputCloud*> outputCloudList;
+	FILE* logFile;
+	logFile = fopen("logFile.txt", "w");
+
+	// SURFACE
+	// array for the directories where the point clouds are stored
+
+	string outputCloudPathsAndCalibration[3][2] = {
+			{ "C:\\Users\\Public\\Data\\JoaoFiadeiro\\SecondSession\\SecondTestPointClouds\\girafa\\Output2\\sample", "girafa.ini" },
+			{ "C:\\Users\\Public\\Data\\JoaoFiadeiro\\SecondSession\\SecondTestPointClouds\\silvia\\Output2\\sample", "silvia.ini" },
+			{ "C:\\Users\\Public\\Data\\JoaoFiadeiro\\SecondSession\\SecondTestPointClouds\\surface\\Output2\\sample", "surface.ini" }
+	}; // filepath, calibration filename 
+
+	//MINI WORK
+	// array for the directories where the point clouds are stored 
+	/*
+	string outputCloudPathsAndCalibration[3][2] = {
+	{ "D:\\Data\\JoaoFiadeiro\\SecondSession\\SecondTestPointClouds\\girafa\\Output2\\sample", "girafa.ini" },
+	{ "D:\\Data\\JoaoFiadeiro\\SecondSession\\SecondTestPointClouds\\silvia\\Output2\\sample", "silvia.ini" },
+	{ "D:\\Data\\JoaoFiadeiro\\SecondSession\\SecondTestPointClouds\\surface\\Output2\\sample", "surface.ini" }
+	}; // filepath, calibration filename */
+
+
+	//load point cloud filenames into to the appropriate lists and sort them
+	pointCloudFilesGirafa = sortFilenames(getFilesInDirectory(outputCloudPathsAndCalibration[0][0]));
+	pointCloudFilesSilvia = sortFilenames(getFilesInDirectory(outputCloudPathsAndCalibration[1][0]));
+	pointCloudFilesSurface = sortFilenames(getFilesInDirectory(outputCloudPathsAndCalibration[2][0]));
+
+
+
+	if (pointCloudFilesGirafa.size() != pointCloudFilesSilvia.size()
+		&& pointCloudFilesSilvia.size() != pointCloudFilesSurface.size()
+		&& pointCloudFilesGirafa.size() != pointCloudFilesSurface.size()) {
+
+		cout << "ERROR: number of point clouds for each viewpoint doesnt match!" << endl;
+		return;
+	}
+
+	//list<CloudCluster*> previousClusters;
+	int numberOfPointCloudFiles = pointCloudFilesSilvia.size();
+	for (int i = 0; i < numberOfPointCloudFiles; i++){
+
+		Node* node = new Node();
+		OutputCloud* outputCloud = new OutputCloud();
+		map<string, string> filenameByCalibrationpath;
+
+		//girafa
+		filenameByCalibrationpath.insert(make_pair(pointCloudFilesGirafa[i], outputCloudPathsAndCalibration[0][1]));
+		//cout << "filename = " << pointCloudFilesGirafa[i] << " calibration file = " << outputCloudPathsAndCalibration[0][1] << endl;
+		// silvia
+		filenameByCalibrationpath.insert(make_pair(pointCloudFilesSilvia[i], outputCloudPathsAndCalibration[1][1]));
+		//cout << "filename = " << pointCloudFilesSilvia[i] << " calibration file = " << outputCloudPathsAndCalibration[1][1] << endl;
+		// surface
+		filenameByCalibrationpath.insert(make_pair(pointCloudFilesSurface[i], outputCloudPathsAndCalibration[2][1]));
+		//cout << "filename = " << pointCloudFilesSurface[i] << " calibration file = " << outputCloudPathsAndCalibration[2][1] << endl;
+
+		outputCloud->loadPointClouds(filenameByCalibrationpath);
+		filenameByCalibrationpath.clear();
+
+		colorBasedRegionGrowingSegmentation(outputCloud->getPointCloudRGB());
+
+	}
+
+}
+
+// --------------
+// -----Main-----
+// --------------
+int
+main(int argc, char** argv)
+{
+	// main function
+	generateAndWriteOutputCloudClusters();
+
+	// test segmentation algorithms
+	//generateClustersColorBasedRegionGrowing();
+	
+
+	// debug clusters
+	//readOutputCloudClustersFiles();
+
+	return 0;
 }

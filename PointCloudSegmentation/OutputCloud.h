@@ -21,6 +21,9 @@
 #include <pcl/point_types.h>
 #include <pcl/common/transforms.h>
 
+// normal estimation
+#include <pcl/features/normal_3d_omp.h>
+
 // EuclideanClusterExtraction
 #include <pcl/segmentation/sac_segmentation.h>
 #include <pcl/segmentation/extract_clusters.h>
@@ -40,10 +43,13 @@ class OutputCloud {
 
 		list<CloudCluster*> clusters;
 
+		FILE* logFile;
+
+
 	public:
 
 		// constructor(s) and destructor
-		OutputCloud():cloudXYZ(new PointCloud<PointXYZ>) { }
+		OutputCloud() :cloudXYZ(new PointCloud<PointXYZ>) { }
 		
 		~OutputCloud();
 
@@ -55,22 +61,30 @@ class OutputCloud {
 		PointCloud<PointXYZ>::Ptr getPointCloudXYZ() const { return cloudXYZ; }
 		//void setPointCloudXYZ(PointCloud<PointXYZ>::Ptr cloudxyz) { cloudXYZ = cloudxyz; }
 
+		int getIndex() { return index; }
 		void setIndex(int idx) { index = idx; }
 
 		list<CloudCluster*> getClusters() const { return clusters; }
+
+		void setLogFile(FILE* file) { logFile = file; }
 
 		// methods
 		void applyCalibrationToPointCloud(PointCloud<PointXYZRGB>::Ptr cloud, string calibrarionFilePath);
 		void loadPointCloudNoFormat(PointCloud<PointXYZRGB>::Ptr cloud, string pointCloudPath);
 		void loadPointClouds(map<string, string> filenameByCalibrationpath);
 		void calculatePointCloudClusters();
+		void estimateClusterNormals();
 		void createCloudClusters(vector<pcl::PointIndices> cluster_indices);
 		void determinePointCloudClustersIndex(list<CloudCluster*> previousClusters);
 		void visualizePointCloudClusters();
+		void visualizePointCloudClustersNormals();
 
-		PointCloud<PointXYZ>::Ptr getClusterX(int index);
+		bool isClusterXAlreadyDefined(int index);
+		int getMaxClusterIndex();
+		PointCloud<PointXYZRGB>::Ptr getClusterX(int index);
 
-		void writeClusters2File(string filepath);
+		void writeClusters2PCDFile(string filepath);
+		void writeClusters2PLYFile(string filepath);
 		
 
 };

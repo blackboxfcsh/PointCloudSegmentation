@@ -13,10 +13,12 @@
   <ItemGroup>
     <ClCompile Include="CloudCluster.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="Node.cpp" />
     <ClCompile Include="OutputCloud.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CloudCluster.h" />
+    <ClInclude Include="Node.h" />
     <ClInclude Include="OutputCloud.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
