@@ -9,6 +9,7 @@ class Node{
 	public:
 
 		Node();
+		~Node();
 		Node(OutputCloud* item, Node* ptrprevious = NULL);
 		
 		void setOutuputCloud(OutputCloud* oc) { outputCloud = oc; }

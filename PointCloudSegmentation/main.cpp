@@ -862,6 +862,25 @@ list<CloudCluster*> getPreviousClusters(OutputCloud* outputCloud, list<Node*> no
 	return tempList;
 }
 
+// delete outputCloud elements so the computer doesn't run out of memory
+list<Node*> releaseXOutputCloudInstances(list<Node*> nodeList, int xElements) {
+
+	int i = 0;
+	list<Node*> nodeListTemp = nodeList;
+	for(list<Node*>::const_iterator iter = nodeList.begin(); iter != nodeList.end(); ++iter) {
+		if (i <= xElements) {
+			Node* node = *iter;
+			nodeListTemp.remove(node);
+			delete node;
+			i++;
+		}
+		else
+			break;
+	}
+
+	return nodeListTemp;
+}
+
 void generateAndWriteOutputCloudClusters(){
 
 	// map allocator for the point clouds filenames 
@@ -875,24 +894,25 @@ void generateAndWriteOutputCloudClusters(){
 	list<OutputCloud*> outputCloudList;
 	FILE* logFile;
 	logFile = fopen("logFile.txt", "w");
+	int numMaxNodes = 50;
 
 	// SURFACE
 	// array for the directories where the point clouds are stored
 
-	string outputCloudPathsAndCalibration[3][2] = {
+/*	string outputCloudPathsAndCalibration[3][2] = {
 			{ "C:\\Users\\Public\\Data\\JoaoFiadeiro\\SecondSession\\SecondTestPointClouds\\girafa\\Output2", "girafa.ini" },
 			{ "C:\\Users\\Public\\Data\\JoaoFiadeiro\\SecondSession\\SecondTestPointClouds\\silvia\\Output2", "silvia.ini" },
 			{ "C:\\Users\\Public\\Data\\JoaoFiadeiro\\SecondSession\\SecondTestPointClouds\\surface\\Output2", "surface.ini" }
-	}; // filepath, calibration filename 
+	}; // filepath, calibration filename */
 
 	//MINI WORK
 	// array for the directories where the point clouds are stored 
-	/*
+	
 	string outputCloudPathsAndCalibration[3][2] = {
-	{ "D:\\Data\\JoaoFiadeiro\\SecondSession\\SecondTestPointClouds\\girafa\\Output2\\sample", "girafa.ini" },
-	{ "D:\\Data\\JoaoFiadeiro\\SecondSession\\SecondTestPointClouds\\silvia\\Output2\\sample", "silvia.ini" },
-	{ "D:\\Data\\JoaoFiadeiro\\SecondSession\\SecondTestPointClouds\\surface\\Output2\\sample", "surface.ini" }
-	}; // filepath, calibration filename */
+	{ "E:\\Data\\JoaoFiadeiro\\SecondSession\\SecondTestPointClouds\\girafa\\Output2\\sample", "girafa.ini" },
+	{ "E:\\Data\\JoaoFiadeiro\\SecondSession\\SecondTestPointClouds\\silvia\\Output2\\sample", "silvia.ini" },
+	{ "E:\\Data\\JoaoFiadeiro\\SecondSession\\SecondTestPointClouds\\surface\\Output2\\sample", "surface.ini" }
+	}; // filepath, calibration filename 
 
 
 	//load point cloud filenames into to the appropriate lists and sort them
@@ -939,7 +959,7 @@ void generateAndWriteOutputCloudClusters(){
 		outputCloud->estimateClusterNormals();
 		outputCloud->determinePointCloudClustersIndex(getPreviousClusters(outputCloud, outputCloudNodeList, logFile));
 		//previousClusters = outputCloud->getClusters();
-		string filepath = "C:\\Users\\Public\\Data\\JoaoFiadeiro\\SecondSession\\SecondTestPointClouds\\clusters\\OutputCloud" + boost::lexical_cast<std::string>(i);
+		string filepath = "C:\\Users\\claudia\\Desktop\\clusters\\OutputCloud" + boost::lexical_cast<std::string>(i);
 		//cout << filepath << endl;
 		outputCloud->writeClusters2PLYFile(filepath);
 
@@ -958,6 +978,9 @@ void generateAndWriteOutputCloudClusters(){
 		outputCloudNodeList.push_back(node);
 		tempOutputCloudNodeList.push_back(node);
 
+		if ((outputCloudNodeList.size() / 2) == numMaxNodes) {
+			outputCloudNodeList = releaseXOutputCloudInstances(outputCloudNodeList, numMaxNodes);
+		}
 
 		//debug point cloud, clusters and normals
 		//visualizePointCloud(outputCloud->getPointCloudRGB());

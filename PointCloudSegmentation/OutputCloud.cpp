@@ -7,11 +7,12 @@ OutputCloud::~OutputCloud() {
 	cloudRGB.reset();
 	cloudXYZ.reset();
 
-	/*list<CloudCluster*>::iterator cloudClusterIter;
+	list<CloudCluster*>::iterator cloudClusterIter;
 	for (cloudClusterIter = clusters.begin(); cloudClusterIter != clusters.end(); ++cloudClusterIter)
 	{
-		delete (*cloudClusterIter);
-	}*/
+		CloudCluster* cluster = (*cloudClusterIter);
+		delete cluster;
+	}
 }
 
 void OutputCloud::applyCalibrationToPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, string calibrarionFilePath){
@@ -126,6 +127,7 @@ void OutputCloud::loadPointClouds(map<string, string> filenameByCalibrationpath)
 		cloud->clear();
 	}
 	cloudRGB = tempCloud;
+	
 }
 
 void OutputCloud::calculatePointCloudClusters() {
@@ -284,6 +286,37 @@ void OutputCloud::determinePointCloudClustersIndex(list<CloudCluster*> previousC
 	return;
 }
 
+double OutputCloud::computeCloudResolution(const pcl::PointCloud<PointXYZ>::ConstPtr &cloud)
+{
+	double res = 0.0;
+	int n_points = 0;
+	int nres;
+	std::vector<int> indices(2);
+	std::vector<float> sqr_distances(2);
+	pcl::search::KdTree<PointXYZ> tree;
+	tree.setInputCloud(cloud);
+
+	for (size_t i = 0; i < cloud->size(); ++i)
+	{
+		if (!pcl_isfinite((*cloud)[i].x))
+		{
+			continue;
+		}
+		//Considering the second neighbor since the first is the point itself.
+		nres = tree.nearestKSearch(i, 2, indices, sqr_distances);
+		if (nres == 2)
+		{
+			res += sqrt(sqr_distances[1]);
+			++n_points;
+		}
+	}
+	if (n_points != 0)
+	{
+		res /= n_points;
+	}
+	return res;
+}
+
 void OutputCloud::estimateClusterNormals(){
 
 	for (list<CloudCluster*>::const_iterator cloudClusterIter = clusters.begin(); cloudClusterIter != clusters.end(); ++cloudClusterIter)
@@ -292,7 +325,7 @@ void OutputCloud::estimateClusterNormals(){
 		//pcl::NormalEstimationOMP<pcl::PointXYZ, pcl::Normal> ne;
 		pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> ne;
 		ne.setInputCloud((*cloudClusterIter)->getPointCloudClusterXYZ());
-
+		
 		// Create an empty kdtree representation, and pass it to the normal estimation object.
 		// Its content will be filled inside the object, based on the given input dataset (as no other search surface is given).
 		pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>());
@@ -301,8 +334,10 @@ void OutputCloud::estimateClusterNormals(){
 		// Output datasets
 		pcl::PointCloud<pcl::Normal>::Ptr cloud_normals(new pcl::PointCloud<pcl::Normal>);
 
-		// Use all neighbors in a sphere of radius 3cm
-		ne.setRadiusSearch(0.03);
+		// Use all neighbors in a sphere of radius of 2 times the resolutions of the point cloud
+		double resolution = computeCloudResolution((*cloudClusterIter)->getPointCloudClusterXYZ());
+		//cout << "resolution = " << resolution * 5 << endl;
+		ne.setRadiusSearch(resolution * 5);
 
 		// Compute the features
 		ne.compute(*cloud_normals);

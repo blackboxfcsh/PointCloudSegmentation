@@ -73,6 +73,7 @@ class OutputCloud {
 		void loadPointCloudNoFormat(PointCloud<PointXYZRGB>::Ptr cloud, string pointCloudPath);
 		void loadPointClouds(map<string, string> filenameByCalibrationpath);
 		void calculatePointCloudClusters();
+		double computeCloudResolution(const pcl::PointCloud<PointXYZ>::ConstPtr &cloud);
 		void estimateClusterNormals();
 		void createCloudClusters(vector<pcl::PointIndices> cluster_indices);
 		void determinePointCloudClustersIndex(list<CloudCluster*> previousClusters);

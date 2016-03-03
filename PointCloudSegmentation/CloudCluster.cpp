@@ -7,6 +7,8 @@ CloudCluster::~CloudCluster(){
 	pointCloudClusterXYZ.reset();
 	pointCloudClusterRGB.reset();
 	pointCloudClusterNormals.reset();
+	pointCloudClusterRGBNormals.reset();
+
 	//delete cluster_centroid;
 }
 
@@ -69,5 +71,10 @@ void CloudCluster::writeCluster2PLYile(string filepath){
 	//concatenate points, rgb and normals
 	pcl::concatenateFields<PointXYZRGB, Normal, PointXYZRGBNormal>(*pointCloudClusterRGB,
 		*pointCloudClusterNormals, *pointCloudClusterRGBNormals);
+
+	// Remove NaN values from cloud_normals
+	std::vector<int> indices;
+	pcl::removeNaNNormalsFromPointCloud(*pointCloudClusterRGBNormals, *pointCloudClusterRGBNormals, indices);
+
 	pcl::io::savePLYFileASCII(path, *pointCloudClusterRGBNormals);
 }

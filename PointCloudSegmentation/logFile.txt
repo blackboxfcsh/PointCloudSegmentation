@@ -1,0 +1,12 @@
+cluster number of points:7559 
+cluster number of points:7311 
+cluster number of points:6924 
+cluster number of points:4009 
+outputCloud i :0 - clusters size :4 | outputCloud i:-1 - previous clusters size:0 
+ wrote outputCloud 0 clusters to file 
+cluster number of points:12221 
+cluster number of points:10807 
+cluster number of points:9853 
+cluster number of points:9738 
+outputCloud i :1 - clusters size :4 | outputCloud i:0 - previous clusters size:4 
+ wrote outputCloud 1 clusters to file 

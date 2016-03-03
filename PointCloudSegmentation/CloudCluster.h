@@ -3,6 +3,9 @@
 #include <pcl/io/pcd_io.h>
 #include <pcl/io/ply_io.h>
 
+// remove NaN points from point cloud
+#include <pcl/filters/filter.h>
+
 using namespace std;
 using namespace pcl;
 

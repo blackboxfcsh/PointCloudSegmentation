@@ -8,6 +8,13 @@ Node::Node()
 
 }
 
+Node::~Node()
+{
+	delete outputCloud;
+	// default constructor
+	// this is to allow us to create an object without any initialization
+
+}
 
 //  This constructor is just to set next pointer of a node and the data contained.
 Node::Node(OutputCloud* item, Node* ptrprevious)
