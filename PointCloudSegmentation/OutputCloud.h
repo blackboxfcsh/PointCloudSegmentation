@@ -79,10 +79,12 @@ class OutputCloud {
 		void determinePointCloudClustersIndex(list<CloudCluster*> previousClusters);
 		void visualizePointCloudClusters();
 		void visualizePointCloudClustersNormals();
+		void visualizePointCloudCluster(int clusterIdx, int fileIDX);
+		void visualizePointCloudClusterNormals(int clusterIdx);
 
 		bool isClusterXAlreadyDefined(int index);
 		int getMaxClusterIndex();
-		PointCloud<PointXYZRGB>::Ptr getClusterX(int index);
+		CloudCluster* getCloudClusterX(int index);
 
 		void writeClusters2PCDFile(string filepath);
 		void writeClusters2PLYFile(string filepath);

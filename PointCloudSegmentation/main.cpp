@@ -432,14 +432,14 @@ void visualizePointCloudCluster(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, int c
 void visualizePointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud){
 
 	boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("Viewer 3D"));
-	viewer->setBackgroundColor(0, 0, 0);
+	viewer->setBackgroundColor(0.75, 0.75, 0.75);
 	viewer->addCoordinateSystem(1.0);
 
 	// visualize clusters
 	pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(cloud);
 	viewer->addPointCloud<pcl::PointXYZRGB>(cloud, rgb, "sample cloud");
 	viewer->addPointCloud(cloud);
-	viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "sample cloud"); (cloud);
+	viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 4, "sample cloud"); (cloud);
 
 	// visualize result
 	while (!viewer->wasStopped())
@@ -908,11 +908,21 @@ void generateAndWriteOutputCloudClusters(){
 	//MINI WORK
 	// array for the directories where the point clouds are stored 
 	
-	string outputCloudPathsAndCalibration[3][2] = {
+	/*string outputCloudPathsAndCalibration[3][2] = {
 	{ "E:\\Data\\JoaoFiadeiro\\SecondSession\\SecondTestPointClouds\\girafa\\Output2\\sample", "girafa.ini" },
 	{ "E:\\Data\\JoaoFiadeiro\\SecondSession\\SecondTestPointClouds\\silvia\\Output2\\sample", "silvia.ini" },
 	{ "E:\\Data\\JoaoFiadeiro\\SecondSession\\SecondTestPointClouds\\surface\\Output2\\sample", "surface.ini" }
+	}; // filepath, calibration filename */
+
+	//BLACKBOX
+	// array for the directories where the point clouds are stored 
+
+	string outputCloudPathsAndCalibration[3][2] = {
+		{ "D:\\DATA\\Second Session\\Kinect Data\\girafa\\Output2\\sample", "girafa.ini" },
+		{ "D:\\DATA\\Second Session\\Kinect Data\\silvia\\Output2\\sample", "silvia.ini" },
+		{ "D:\\DATA\\Second Session\\Kinect Data\\surface\\Output2\\sample", "surface.ini" }
 	}; // filepath, calibration filename 
+
 
 
 	//load point cloud filenames into to the appropriate lists and sort them
@@ -961,7 +971,7 @@ void generateAndWriteOutputCloudClusters(){
 		//previousClusters = outputCloud->getClusters();
 		string filepath = "C:\\Users\\claudia\\Desktop\\clusters\\OutputCloud" + boost::lexical_cast<std::string>(i);
 		//cout << filepath << endl;
-		outputCloud->writeClusters2PLYFile(filepath);
+		//outputCloud->writeClusters2PLYFile(filepath);
 
 		fprintf(logFile, " wrote outputCloud %d clusters to file \n", i);
 		cout << "wrote outputCloud " << i << " clusters to file" << endl;
@@ -986,6 +996,9 @@ void generateAndWriteOutputCloudClusters(){
 		//visualizePointCloud(outputCloud->getPointCloudRGB());
 		//outputCloud->visualizePointCloudClusters();
 		//outputCloud->visualizePointCloudClustersNormals();
+
+		//debug point cloud individual clusters
+		outputCloud->visualizePointCloudCluster(1, outputCloudNodeList.size());
 
 		//for (int i = 0; i < previousClusters.size(); i++)
 		//	cout << "cluster " << i << " number of points = " << outputCloud.getClusterX(i)->points.size() << endl;

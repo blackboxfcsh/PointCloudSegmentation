@@ -348,7 +348,7 @@ void OutputCloud::estimateClusterNormals(){
 void OutputCloud::visualizePointCloudClusters(){
 
 	boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
-	viewer->setBackgroundColor(0, 0, 0);
+	viewer->setBackgroundColor(0.75, 0.75, 0.75);
 	int j = 0;
 	for (list<CloudCluster*>::const_iterator cloudClusterIter = clusters.begin(); cloudClusterIter != clusters.end(); ++cloudClusterIter)
 	{
@@ -365,7 +365,7 @@ void OutputCloud::visualizePointCloudClusters(){
 
 		pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(pointCloudCluster);
 		viewer->addPointCloud<pcl::PointXYZRGB>(pointCloudCluster, rgb, "sample cloud" + j);
-		viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "sample cloud" + j); (pointCloudCluster);
+		viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 4, "sample cloud" + j); (pointCloudCluster);
 		viewer->addCube(minPointAABB.x, maxPointAABB.x, minPointAABB.y, maxPointAABB.y, minPointAABB.z, maxPointAABB.z, 1.0, 1.0, 0.0, "AABB" + j);
 
 		//std::cout << "AABB" << j << std::endl;
@@ -390,13 +390,62 @@ void OutputCloud::visualizePointCloudClusters(){
 	return;
 }
 
+
+void OutputCloud::visualizePointCloudCluster(int clusterIdx, int fileIDX){
+
+	boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
+	viewer->setBackgroundColor(0.75, 0.75, 0.75);
+	
+	
+	CloudCluster* cloudCluster = getCloudClusterX(clusterIdx);
+	if (cloudCluster == NULL) {
+		cout << "ERROR in visualizePointCloudCluster: no cluster found with index = " << clusterIdx << endl;
+		return;
+	}
+
+	PointCloud<PointXYZRGB>::Ptr pointCloudCluster = cloudCluster->getPointCloudClusterRGB();
+
+	PointXYZ minPointAABB = cloudCluster->getMinPointAABB();
+	PointXYZ maxPointAABB = cloudCluster->getMaxPointAABB();
+
+	// visualize clusters
+	//	pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> single_color(pointCloudCluster, (j * 3 * 10), 80, j * 3 * 20);
+	//	viewer->addPointCloud<pcl::PointXYZ>(pointCloudCluster, single_color, "sample cloud" + j);
+
+	pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(pointCloudCluster);
+	viewer->addPointCloud<pcl::PointXYZRGB>(pointCloudCluster, rgb, "sample cloud");
+	viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 4, "sample cloud"); (pointCloudCluster);
+	viewer->addCube(minPointAABB.x, maxPointAABB.x, minPointAABB.y, maxPointAABB.y, minPointAABB.z, maxPointAABB.z, 1.0, 1.0, 0.0, "AABB");
+
+	//std::cout << "AABB" << j << std::endl;
+	//std::cout << "cloud_cluster_" << j << "\t" << "color  = " << (j * 10) << "," << 255 << "," << j * 20 << std::endl;
+
+	viewer->addCoordinateSystem(1.0);
+	viewer->initCameraParameters();
+
+	// visualize result
+	while (!viewer->wasStopped())
+	{
+		viewer->spinOnce(100);
+		boost::this_thread::sleep(boost::posix_time::microseconds(100000));
+	}
+	
+	//string filename = "CAPTURE" + boost::lexical_cast<std::string>(fileIDX)+ ".png";
+	//viewer->saveScreenshot(filename);
+
+	// closes the window after pressing 'q'
+	viewer->close();
+
+	return;
+}
+
 void OutputCloud::visualizePointCloudClustersNormals()
 {
 	// --------------------------------------------------------
 	// -----Open 3D viewer and add point cloud and normals-----
 	// --------------------------------------------------------
 	boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
-	viewer->setBackgroundColor(0, 0, 0);
+	viewer->setBackgroundColor(0.75, 0.75, 0.75);
 	int j = 0;
 	for (list<CloudCluster*>::const_iterator cloudClusterIter = clusters.begin(); cloudClusterIter != clusters.end(); ++cloudClusterIter)
 	{
@@ -414,9 +463,9 @@ void OutputCloud::visualizePointCloudClustersNormals()
 
 		pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(pointCloudCluster);
 		viewer->addPointCloud<pcl::PointXYZRGB>(pointCloudCluster, rgb, "sample cloud" + j);
-		viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "sample cloud" + j); (pointCloudCluster);
+		viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 4, "sample cloud" + j); (pointCloudCluster);
 		viewer->addCube(minPointAABB.x, maxPointAABB.x, minPointAABB.y, maxPointAABB.y, minPointAABB.z, maxPointAABB.z, 1.0, 1.0, 0.0, "AABB" + j);
-		viewer->addPointCloudNormals<pcl::PointXYZRGB, pcl::Normal>(pointCloudCluster, pointCloudCluterNormals, 10, 0.05, "normals" + j);
+		viewer->addPointCloudNormals<pcl::PointXYZRGB, pcl::Normal>(pointCloudCluster, pointCloudCluterNormals, 10, 0.2, "normals" + j);
 
 		//std::cout << "AABB" << j << std::endl;
 		//std::cout << "cloud_cluster_" << j << "\t" << "color  = " << (j * 10) << "," << 255 << "," << j * 20 << std::endl;
@@ -441,6 +490,55 @@ void OutputCloud::visualizePointCloudClustersNormals()
 	
 }
 
+void OutputCloud::visualizePointCloudClusterNormals(int clusterIdx)
+{
+	// --------------------------------------------------------
+	// -----Open 3D viewer and add point cloud and normals-----
+	// --------------------------------------------------------
+	boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
+	viewer->setBackgroundColor(0.75, 0.75, 0.75);
+
+	CloudCluster* cloudCluster = getCloudClusterX(clusterIdx);
+	if (cloudCluster == NULL) {
+		cout << "ERROR in visualizePointCloudClusterNormals: no cluster found with index = " << clusterIdx << endl;
+		return;
+	}
+
+	PointCloud<PointXYZRGB>::Ptr pointCloudCluster = cloudCluster->getPointCloudClusterRGB();
+	PointCloud<pcl::Normal>::Ptr pointCloudCluterNormals = cloudCluster->getPointCloudClusterNormals();
+
+	PointXYZ minPointAABB = cloudCluster->getMinPointAABB();
+	PointXYZ maxPointAABB = cloudCluster->getMaxPointAABB();
+
+	// visualize clusters
+	//pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> single_color(pointCloudCluster, (j * 3 * 10), 80, j * 3 * 20);
+	//viewer->addPointCloud<pcl::PointXYZ>(pointCloudCluster, single_color, "sample cloud" + j);
+
+	pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(pointCloudCluster);
+	viewer->addPointCloud<pcl::PointXYZRGB>(pointCloudCluster, rgb, "sample cloud");
+	viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 4, "sample cloud"); (pointCloudCluster);
+	viewer->addCube(minPointAABB.x, maxPointAABB.x, minPointAABB.y, maxPointAABB.y, minPointAABB.z, maxPointAABB.z, 1.0, 1.0, 0.0, "AABB");
+	viewer->addPointCloudNormals<pcl::PointXYZRGB, pcl::Normal>(pointCloudCluster, pointCloudCluterNormals, 10, 0.2, "normals");
+
+	//std::cout << "AABB" << j << std::endl;
+	//std::cout << "cloud_cluster_" << j << "\t" << "color  = " << (j * 10) << "," << 255 << "," << j * 20 << std::endl;
+
+	viewer->addCoordinateSystem(1.0);
+	viewer->initCameraParameters();
+
+	// visualize result
+	while (!viewer->wasStopped())
+	{
+		viewer->spinOnce(100);
+		boost::this_thread::sleep(boost::posix_time::microseconds(100000));
+	}
+
+	// closes the window after pressing 'q'
+	viewer->close();
+
+	return;
+
+}
 
 void OutputCloud::writeClusters2PCDFile(string filepath) {
 	
@@ -491,15 +589,16 @@ int OutputCloud::getMaxClusterIndex(){
 }
 
 
-PointCloud<PointXYZRGB>::Ptr OutputCloud::getClusterX(int index) {
+CloudCluster* OutputCloud::getCloudClusterX(int clusterIdx) {
 
 
 	for (list<CloudCluster*>::const_iterator cloudClusterIter = clusters.begin(); cloudClusterIter != clusters.end(); cloudClusterIter++)
 	{
 		CloudCluster* cloudCluster = (*cloudClusterIter);
 		if (cloudCluster->getClusterIndex() == index)
-			return cloudCluster->getPointCloudClusterRGB();
+			return cloudCluster;
 	}
+	return NULL;
 }
 
 
