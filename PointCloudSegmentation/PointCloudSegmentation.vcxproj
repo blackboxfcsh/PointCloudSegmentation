@@ -55,11 +55,11 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>D:\PCL\PCL 1.6.0\3rdParty\Boost\include;D:\PCL\PCL 1.8.0\include\pcl-1.8;D:\PCL\PCL 1.6.0\3rdParty\VTK\include\vtk-5.8;D:\PCL\PCL 1.6.0\3rdParty\eigen;D:\PCL\PCL 1.6.0\3rdParty\FLANN\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\PCL\PCL 1.6.0\3rdParty\Boost\include;C:\PCL\PCL 1.8.0\include\pcl-1.8;C:\PCL\PCL 1.6.0\3rdParty\VTK\include\vtk-5.8;C:\PCL\PCL 1.6.0\3rdParty\eigen;C:\PCL\PCL 1.6.0\3rdParty\FLANN\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>D:\PCL\PCL 1.6.0\3rdParty\VTK\lib\vtk-5.8;D:\PCL\PCL 1.6.0\3rdParty\Boost\lib;D:\PCL\PCL 1.8.0\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:\PCL\PCL 1.6.0\3rdParty\VTK\lib\vtk-5.8;C:\PCL\PCL 1.6.0\3rdParty\Boost\lib;C:\PCL\PCL 1.8.0\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>pcl_visualization_debug.lib;pcl_common_debug.lib;pcl_io_debug.lib;pcl_search_debug.lib;pcl_features_debug.lib;pcl_filters_debug.lib;pcl_segmentation_debug.lib;pcl_octree_debug.lib;pcl_sample_consensus_debug.lib;opengl32.lib;vtkalglib-gd.lib;vtkCharts-gd.lib;vtkCommon-gd.lib;vtkDICOMParser-gd.lib;vtkexoIIc-gd.lib;vtkexpat-gd.lib;vtkFiltering-gd.lib;vtkfreetype-gd.lib;vtkftgl-gd.lib;vtkGenericFiltering-gd.lib;vtkGeovis-gd.lib;vtkGraphics-gd.lib;vtkhdf5-gd.lib;vtkHybrid-gd.lib;vtkImaging-gd.lib;vtkInfovis-gd.lib;vtkIO-gd.lib;vtkjpeg-gd.lib;vtklibxml2-gd.lib;vtkmetaio-gd.lib;vtkNetCDF-gd.lib;vtkNetCDF_cxx-gd.lib;vtkpng-gd.lib;vtkproj4-gd.lib;vtkRendering-gd.lib;vtksqlite-gd.lib;vtksys-gd.lib;vtktiff-gd.lib;vtkverdict-gd.lib;vtkViews-gd.lib;vtkVolumeRendering-gd.lib;vtkWidgets-gd.lib;vtkzlib-gd.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>

@@ -130,6 +130,16 @@ void OutputCloud::loadPointClouds(map<string, string> filenameByCalibrationpath)
 	
 }
 
+void OutputCloud::loadPointClouds(string pointCloudFileName) {
+
+	PointCloud<PointXYZRGB>::Ptr cloud(new PointCloud<PointXYZRGB>);
+	loadPointCloudNoFormat(cloud, pointCloudFileName);
+	cloudRGB = cloud;
+	copyPointCloud<PointXYZRGB, PointXYZ>(*cloudRGB, *cloudXYZ);
+	
+
+}
+
 void OutputCloud::calculatePointCloudClusters() {
 
 	EuclideanClusterExtraction<PointXYZ> ec;

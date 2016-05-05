@@ -72,6 +72,7 @@ class OutputCloud {
 		void applyCalibrationToPointCloud(PointCloud<PointXYZRGB>::Ptr cloud, string calibrarionFilePath);
 		void loadPointCloudNoFormat(PointCloud<PointXYZRGB>::Ptr cloud, string pointCloudPath);
 		void loadPointClouds(map<string, string> filenameByCalibrationpath);
+		void loadPointClouds(string pointCloudFileName);
 		void calculatePointCloudClusters();
 		double computeCloudResolution(const pcl::PointCloud<PointXYZ>::ConstPtr &cloud);
 		void estimateClusterNormals();
@@ -88,6 +89,5 @@ class OutputCloud {
 
 		void writeClusters2PCDFile(string filepath);
 		void writeClusters2PLYFile(string filepath);
-		
 
 };

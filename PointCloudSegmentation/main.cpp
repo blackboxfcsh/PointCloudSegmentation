@@ -1090,6 +1090,59 @@ void generateClustersColorBasedRegionGrowing() {
 
 }
 
+
+void calculatePointCloudNormals(){
+	
+	string outputCloudPaths[2] = {
+		"C:\\Users\\claudia\\Desktop\\3DModels\\models\\guitar\\sample" };
+
+	vector<string> pointCloudFiles = getFilesInDirectory(outputCloudPaths[0]);
+
+	int numberOfPointCloudFiles = pointCloudFiles.size();
+	for (int i = 0; i < numberOfPointCloudFiles; i++){
+
+		OutputCloud* outputCloud = new OutputCloud();
+	
+
+		outputCloud->loadPointClouds(pointCloudFiles[i]);
+
+
+		pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> ne;
+		ne.setInputCloud(outputCloud->getPointCloudXYZ());
+
+		// Create an empty kdtree representation, and pass it to the normal estimation object.
+		// Its content will be filled inside the object, based on the given input dataset (as no other search surface is given).
+		pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>());
+		ne.setSearchMethod(tree);
+
+		// Output datasets
+		pcl::PointCloud<pcl::Normal>::Ptr cloud_normals(new pcl::PointCloud<pcl::Normal>);
+
+		// Use all neighbors in a sphere of radius of 2 times the resolutions of the point cloud
+		double resolution = outputCloud->computeCloudResolution(outputCloud->getPointCloudXYZ());
+		//cout << "resolution = " << resolution * 5 << endl;
+		ne.setRadiusSearch(resolution * 5);
+
+		// Compute the features
+		ne.compute(*cloud_normals);
+
+		string filepath = "C:\\Users\\claudia\\Desktop\\clusters\\OutputCloud" + boost::lexical_cast<std::string>(i) + ".ply";
+		
+		//concatenate points, rgb and normals
+		PointCloud<PointXYZRGBNormal>::Ptr pointCloudClusterRGBNormals(new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+		pcl::concatenateFields<PointXYZRGB, Normal, PointXYZRGBNormal>(*(outputCloud->getPointCloudRGB()),
+			*cloud_normals, *pointCloudClusterRGBNormals);
+
+		// Remove NaN values from cloud_normals
+		std::vector<int> indices;
+		pcl::removeNaNNormalsFromPointCloud(*pointCloudClusterRGBNormals, *pointCloudClusterRGBNormals, indices);
+
+		pcl::io::savePLYFileASCII(filepath, *pointCloudClusterRGBNormals);
+
+		cout << "Wrote point cloud to: " << filepath << endl;
+	}
+}
+
 // --------------
 // -----Main-----
 // --------------
@@ -1097,11 +1150,13 @@ int
 main(int argc, char** argv)
 {
 	// main function
-	generateAndWriteOutputCloudClusters();
+	//generateAndWriteOutputCloudClusters();
 
 	// test segmentation algorithms
 	//generateClustersColorBasedRegionGrowing();
 	
+	// calculate point cloud normals
+	calculatePointCloudNormals();
 
 	// debug clusters
 	//readOutputCloudClustersFiles();
