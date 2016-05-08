@@ -1094,18 +1094,17 @@ void generateClustersColorBasedRegionGrowing() {
 void calculatePointCloudNormals(){
 	
 	string outputCloudPaths[2] = {
-		"C:\\Users\\claudia\\Desktop\\3DModels\\models\\guitar\\sample" };
+		"C:\\Users\\claud\\Desktop\\guitardata\\sample" };
 
 	vector<string> pointCloudFiles = getFilesInDirectory(outputCloudPaths[0]);
 
+	int ncloud = 198;
 	int numberOfPointCloudFiles = pointCloudFiles.size();
 	for (int i = 0; i < numberOfPointCloudFiles; i++){
 
 		OutputCloud* outputCloud = new OutputCloud();
-	
 
 		outputCloud->loadPointClouds(pointCloudFiles[i]);
-
 
 		pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> ne;
 		ne.setInputCloud(outputCloud->getPointCloudXYZ());
@@ -1125,8 +1124,8 @@ void calculatePointCloudNormals(){
 
 		// Compute the features
 		ne.compute(*cloud_normals);
-
-		string filepath = "C:\\Users\\claudia\\Desktop\\clusters\\OutputCloud" + boost::lexical_cast<std::string>(i) + ".ply";
+		
+		string filepath = "C:\\Users\\claud\\Desktop\\guitardata\\sample\\OutputCloud" + boost::lexical_cast<std::string>(ncloud)+"_cloud_cluster_0.ply";
 		
 		//concatenate points, rgb and normals
 		PointCloud<PointXYZRGBNormal>::Ptr pointCloudClusterRGBNormals(new pcl::PointCloud<pcl::PointXYZRGBNormal>);
@@ -1140,6 +1139,12 @@ void calculatePointCloudNormals(){
 		pcl::io::savePLYFileASCII(filepath, *pointCloudClusterRGBNormals);
 
 		cout << "Wrote point cloud to: " << filepath << endl;
+		ncloud++;
+
+		delete outputCloud;
+		tree.reset();
+		cloud_normals.reset();
+		pointCloudClusterRGBNormals.reset();
 	}
 }
 
